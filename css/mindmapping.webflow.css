@@ -1,0 +1,64 @@
+.body {
+  font-family: Lato, sans-serif;
+}
+
+.text_bubble {
+  margin-bottom: 0px;
+  padding: 18px 15px 20px;
+  background-color: #000;
+  color: #fff;
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.text_bubble_wrap {
+  position: absolute;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.text_bubble_handle {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: end;
+  -webkit-justify-content: flex-end;
+  -ms-flex-pack: end;
+  justify-content: flex-end;
+  -webkit-box-align: center;
+  -webkit-align-items: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+.handle_line_and_circle {
+  position: absolute;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-left: 15px;
+  -webkit-box-align: center;
+  -webkit-align-items: center;
+  -ms-flex-align: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.handle_circle {
+  width: 10px;
+  height: 10px;
+  border-radius: 100%;
+  background-color: #000;
+}
+
+.handle_line {
+  width: 12px;
+  height: 2px;
+  background-color: #000;
+}
