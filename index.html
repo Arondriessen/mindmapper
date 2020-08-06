@@ -39,6 +39,9 @@
     var clickedMiddleX = 0;
     var clickedMiddleY = 0;
     var releasedOn = 0;
+    var bubbles= [];
+    var connections = [];
+    var draggedConnections = [];
 
     document.onmousemove = function(e) {
       x = e.clientX;
@@ -99,6 +102,7 @@
             d3.select(this)
               .append('div')
               .classed('text_bubble_wrap', true)
+              .call(function(parent) { bubbles.push(parent); })
               .style('margin-left', Math.floor(x - 14) + 'px')
               .style('margin-top', Math.floor(y - 32) + 'px')
               .style('z-index', '10')
@@ -148,15 +152,7 @@
         editing = 1;
       } else if (event.button == 2) {
         event.preventDefault();
-
-        d3.select('body')
-          .append('div')
-          .style('border', '1px solid #000')
-          .style('width', '0px')
-          .style('height', '0px')
-          .style('position', 'absolute')
-          .style('z-index', '0')
-          .call(function(parent) { connecting = parent; });
+        createConnectionBox();
       }
     }
 
@@ -168,7 +164,7 @@
     }
 
     function bubbleHover() {
-      // Hover In
+      // Hover Onto Text Bubble
       if (dragging == 0) {
         if (connecting == 0) {
           d3.select(this)
@@ -180,13 +176,14 @@
     }
 
     function bubbleHoverOut() {
-      // Hover Out
+      // Hover Off of Text Bubble
       d3.select(this)
          .select('div.text_bubble_handle')
          .style('opacity', '0%');
     }
 
     function bubbleRClick() {
+      // Right Click
       event.preventDefault();
     }
 
@@ -197,16 +194,52 @@
       dragged = this.parentNode;
       xOffset = (parseInt(d3.select(dragged).style('margin-left'), 10) - x);
       yOffset = (parseInt(d3.select(dragged).style('margin-top'), 10) - y);
+
+
+      for (let y = 0; y < connections.length; y++) {
+        if (connections[y][1] == dragged) {
+          draggedConnections.push(y);
+        }
+      }
     }
 
     function draggingBubble() {
+      // Dragging a Text Bubble
       d3.select(dragged)
         .style('margin-left', (x + xOffset) + 'px')
         .style('margin-top', (y + yOffset) + 'px');
+
+      if (draggedConnections.length > 0) {
+        for (let i = 0; i < draggedConnections.length; i++) {
+          clickedMiddleX = (parseInt(d3.select(dragged).style('margin-left'), 10) + Math.floor(parseInt(d3.select(dragged).style('width'), 10) / 2));
+          clickedMiddleY = (parseInt(d3.select(dragged).style('margin-top'), 10) + Math.floor(parseInt(d3.select(dragged).style('height'), 10) / 2));
+          let endPointX = (parseInt(d3.select(connections[draggedConnections[i]][2]).style('margin-left'), 10) + Math.floor(parseInt(d3.select(connections[draggedConnections[i]][2]).style('width'), 10) / 2));
+          let endPointY = (parseInt(d3.select(connections[draggedConnections[i]][2]).style('margin-top'), 10) + Math.floor(parseInt(d3.select(connections[draggedConnections[i]][2]).style('height'), 10) / 2));
+          connections[draggedConnections[i]][0].style('margin-left', Math.min(clickedMiddleX, endPointX) + 'px')
+            .style('margin-top', Math.min(clickedMiddleY, endPointY) + 'px')
+            .style('width', Math.abs(clickedMiddleX - endPointX) + 'px')
+            .style('height', Math.abs(clickedMiddleY - endPointY) + 'px');
+        }
+      }
     }
 
     function stopDrag() {
-      // Stop Dragging Bubble
+      // Stop Dragging a Text Bubble
+      draggedConnections.length = 0;
+    }
+
+    function createConnectionBox() {
+
+      d3.select('body')
+        .append('div')
+        .style('border', '1px solid #000')
+        .style('width', '0px')
+        .style('height', '0px')
+        .style('position', 'absolute')
+        .style('z-index', '0')
+        .call(function(parent) {
+          connecting = parent;
+        });
     }
 
     function connectingBubbles() {
@@ -229,6 +262,9 @@
           .style('margin-top', Math.min(clickedMiddleY, snapY) + 'px')
           .style('width', Math.abs(clickedMiddleX - snapX) + 'px')
           .style('height', Math.abs(clickedMiddleY - snapY) + 'px');
+
+        connections.push([connecting, clicked.parentNode, papa]);
+
       } else {
         connecting.remove();
       }
