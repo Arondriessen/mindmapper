@@ -246,7 +246,7 @@
 
     function createConnectionBox() {
 
-      let papa = clicked.parentNode;
+      papa = clicked.parentNode;
 
       d3.select('body')
         .append('div')
@@ -279,14 +279,12 @@
       let hh = sketchId.height;
       let xDir = Math.min(Math.max((x2 - x1), 0), 1);
       let yDir = Math.min(Math.max((y2 - y1), 0), 1);
-      console.log(xDir + " : " + yDir);
 
       sketchId.bezier(ww * (!xDir), hh * (!yDir), ww / 2, hh * (!yDir), ww / 2, hh * (yDir), ww * xDir, hh * yDir);
     }
 
     function connectingBubbles() {
       // Connecting Text Bubbles
-      let papa = clicked.parentNode;
       x1 = (parseInt(d3.select(papa).style('margin-left'), 10) + Math.floor(parseInt(d3.select(papa).style('width'), 10) / 2));
       y1 = (parseInt(d3.select(papa).style('margin-top'), 10) + Math.floor(parseInt(d3.select(papa).style('height'), 10) / 2));
       x2 = x;
@@ -303,7 +301,7 @@
 
     function snapConnectionToBubble() {
       if (releasedOn != clicked) {
-        let papa = releasedOn.parentNode;
+        papa = releasedOn.parentNode;
         x2 = (parseInt(d3.select(papa).style('margin-left'), 10) + Math.floor(parseInt(d3.select(papa).style('width'), 10) / 2));
         y2 = (parseInt(d3.select(papa).style('margin-top'), 10) + Math.floor(parseInt(d3.select(papa).style('height'), 10) / 2));
         connectionBoxW = Math.abs(x1 - x2);
