@@ -17,6 +17,7 @@
   <link href="images/favicon.ico" rel="shortcut icon" type="image/x-icon">
   <link href="images/webclip.png" rel="apple-touch-icon">
   <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.1.9/lib/p5.js"></script>
 </head>
 <body class="body">
   <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.4.1.min.220afd743d.js?site=5f280da840b6db7e3ef167ea" type="text/javascript" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
@@ -36,13 +37,18 @@
     var editing = 0;
     var dragged = 0;
     var connecting = 0;
-    var clickedMiddleX = 0;
-    var clickedMiddleY = 0;
+    var x1 = 0;
+    var y1 = 0;
+    var x2 = 0;
+    var y2 = 0;
     var releasedOn = 0;
     var bubbles= [];
     var connections = [];
     var draggedConnections = [];
     var draggedConnectionEndPoints = [];
+    var connectionBoxW = 0;
+    var connectionBoxH = 0;
+    var sketchId;
 
     document.onmousemove = function(e) {
       x = e.clientX;
@@ -215,14 +221,19 @@
 
       if (draggedConnections.length > 0) {
         for (let i = 0; i < draggedConnections.length; i++) {
-          clickedMiddleX = (parseInt(d3.select(dragged).style('margin-left'), 10) + Math.floor(parseInt(d3.select(dragged).style('width'), 10) / 2));
-          clickedMiddleY = (parseInt(d3.select(dragged).style('margin-top'), 10) + Math.floor(parseInt(d3.select(dragged).style('height'), 10) / 2));
-          let endPointX = (parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('margin-left'), 10) + Math.floor(parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('width'), 10) / 2));
-          let endPointY = (parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('margin-top'), 10) + Math.floor(parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('height'), 10) / 2));
-          connections[draggedConnections[i]][0].style('margin-left', Math.min(clickedMiddleX, endPointX) + 'px')
-            .style('margin-top', Math.min(clickedMiddleY, endPointY) + 'px')
-            .style('width', Math.abs(clickedMiddleX - endPointX) + 'px')
-            .style('height', Math.abs(clickedMiddleY - endPointY) + 'px');
+          x1 = (parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('margin-left'), 10) + Math.floor(parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('width'), 10) / 2));
+          y1 = (parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('margin-top'), 10) + Math.floor(parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('height'), 10) / 2));
+          x2 = (parseInt(d3.select(dragged).style('margin-left'), 10) + Math.floor(parseInt(d3.select(dragged).style('width'), 10) / 2));
+          y2 = (parseInt(d3.select(dragged).style('margin-top'), 10) + Math.floor(parseInt(d3.select(dragged).style('height'), 10) / 2));
+          connectionBoxW = Math.abs(x1 - x2);
+          connectionBoxH = Math.abs(y1 - y2);
+          connections[draggedConnections[i]][0].style('margin-left', Math.min(x1, x2) + 'px')
+            .style('margin-top', Math.min(y1, y2) + 'px')
+            .style('width', connectionBoxW + 'px')
+            .style('height', connectionBoxH + 'px');
+
+          sketchId = connections[draggedConnections[i]][3];
+          drawLine(sketchId);
         }
       }
     }
@@ -235,9 +246,11 @@
 
     function createConnectionBox() {
 
+      let papa = clicked.parentNode;
+
       d3.select('body')
         .append('div')
-        .style('border', '1px solid #000')
+        .attr('id', 'connection' + connections.length)
         .style('width', '0px')
         .style('height', '0px')
         .style('position', 'absolute')
@@ -245,30 +258,63 @@
         .call(function(parent) {
           connecting = parent;
         });
+
+        new p5(sketch_connection, 'connection' + connections.length)
+
+        function sketch_connection(p) {
+          sketchId = p;
+          sketchId.setup = function () {
+            sketchId.createCanvas(0,0);
+            sketchId.noFill();
+            sketchId.stroke(0);
+          }
+        }
+    }
+
+    function drawLine(sketchId) {
+      sketchId.resizeCanvas(connectionBoxW,connectionBoxH);
+      sketchId.clear();
+
+      let ww = sketchId.width;
+      let hh = sketchId.height;
+      let xDir = Math.min(Math.max((x2 - x1), 0), 1);
+      let yDir = Math.min(Math.max((y2 - y1), 0), 1);
+      console.log(xDir + " : " + yDir);
+
+      sketchId.bezier(ww * (!xDir), hh * (!yDir), ww / 2, hh * (!yDir), ww / 2, hh * (yDir), ww * xDir, hh * yDir);
     }
 
     function connectingBubbles() {
       // Connecting Text Bubbles
       let papa = clicked.parentNode;
-      clickedMiddleX = (parseInt(d3.select(papa).style('margin-left'), 10) + Math.floor(parseInt(d3.select(papa).style('width'), 10) / 2));
-      clickedMiddleY = (parseInt(d3.select(papa).style('margin-top'), 10) + Math.floor(parseInt(d3.select(papa).style('height'), 10) / 2));
-      connecting.style('margin-left', Math.min(clickedMiddleX, x) + 'px')
-        .style('margin-top', Math.min(clickedMiddleY, y) + 'px')
-        .style('width', Math.abs(clickedMiddleX - x) + 'px')
-        .style('height', Math.abs(clickedMiddleY - y) + 'px');
+      x1 = (parseInt(d3.select(papa).style('margin-left'), 10) + Math.floor(parseInt(d3.select(papa).style('width'), 10) / 2));
+      y1 = (parseInt(d3.select(papa).style('margin-top'), 10) + Math.floor(parseInt(d3.select(papa).style('height'), 10) / 2));
+      x2 = x;
+      y2 = y;
+      connectionBoxW = Math.abs(x1 - x2);
+      connectionBoxH = Math.abs(y1 - y2);
+      connecting.style('margin-left', Math.min(x1, x2) + 'px')
+        .style('margin-top', Math.min(y1, y2) + 'px')
+        .style('width', connectionBoxW + 'px')
+        .style('height', connectionBoxH + 'px');
+
+      drawLine(sketchId);
     }
 
     function snapConnectionToBubble() {
       if (releasedOn != clicked) {
         let papa = releasedOn.parentNode;
-        let snapX = (parseInt(d3.select(papa).style('margin-left'), 10) + Math.floor(parseInt(d3.select(papa).style('width'), 10) / 2));
-        let snapY = (parseInt(d3.select(papa).style('margin-top'), 10) + Math.floor(parseInt(d3.select(papa).style('height'), 10) / 2));
-        connecting.style('margin-left', Math.min(clickedMiddleX, snapX) + 'px')
-          .style('margin-top', Math.min(clickedMiddleY, snapY) + 'px')
-          .style('width', Math.abs(clickedMiddleX - snapX) + 'px')
-          .style('height', Math.abs(clickedMiddleY - snapY) + 'px');
+        x2 = (parseInt(d3.select(papa).style('margin-left'), 10) + Math.floor(parseInt(d3.select(papa).style('width'), 10) / 2));
+        y2 = (parseInt(d3.select(papa).style('margin-top'), 10) + Math.floor(parseInt(d3.select(papa).style('height'), 10) / 2));
+        connectionBoxW = Math.abs(x1 - x2);
+        connectionBoxH = Math.abs(y1 - y2);
+        connecting.style('margin-left', Math.min(x1, x2) + 'px')
+          .style('margin-top', Math.min(y1, y2) + 'px')
+          .style('width', connectionBoxW + 'px')
+          .style('height', connectionBoxH + 'px');
 
-        connections.push([connecting, clicked.parentNode, papa]);
+        drawLine(sketchId);
+        connections.push([connecting, clicked.parentNode, papa, sketchId]);
 
       } else {
         connecting.remove();
