@@ -42,6 +42,7 @@
     var bubbles= [];
     var connections = [];
     var draggedConnections = [];
+    var draggedConnectionEndPoints = [];
 
     document.onmousemove = function(e) {
       x = e.clientX;
@@ -166,11 +167,9 @@
     function bubbleHover() {
       // Hover Onto Text Bubble
       if (dragging == 0) {
-        if (connecting == 0) {
-          d3.select(this)
-             .select('div.text_bubble_handle')
-             .style('opacity', '100%');
-        }
+        d3.select(this)
+           .select('div.text_bubble_handle')
+           .style('opacity', '100%');
       }
       onEmpty = 0;
     }
@@ -199,6 +198,11 @@
       for (let y = 0; y < connections.length; y++) {
         if (connections[y][1] == dragged) {
           draggedConnections.push(y);
+          draggedConnectionEndPoints.push(2);
+        }
+        if (connections[y][2] == dragged) {
+          draggedConnections.push(y);
+          draggedConnectionEndPoints.push(1);
         }
       }
     }
@@ -213,8 +217,8 @@
         for (let i = 0; i < draggedConnections.length; i++) {
           clickedMiddleX = (parseInt(d3.select(dragged).style('margin-left'), 10) + Math.floor(parseInt(d3.select(dragged).style('width'), 10) / 2));
           clickedMiddleY = (parseInt(d3.select(dragged).style('margin-top'), 10) + Math.floor(parseInt(d3.select(dragged).style('height'), 10) / 2));
-          let endPointX = (parseInt(d3.select(connections[draggedConnections[i]][2]).style('margin-left'), 10) + Math.floor(parseInt(d3.select(connections[draggedConnections[i]][2]).style('width'), 10) / 2));
-          let endPointY = (parseInt(d3.select(connections[draggedConnections[i]][2]).style('margin-top'), 10) + Math.floor(parseInt(d3.select(connections[draggedConnections[i]][2]).style('height'), 10) / 2));
+          let endPointX = (parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('margin-left'), 10) + Math.floor(parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('width'), 10) / 2));
+          let endPointY = (parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('margin-top'), 10) + Math.floor(parseInt(d3.select(connections[draggedConnections[i]][draggedConnectionEndPoints[i]]).style('height'), 10) / 2));
           connections[draggedConnections[i]][0].style('margin-left', Math.min(clickedMiddleX, endPointX) + 'px')
             .style('margin-top', Math.min(clickedMiddleY, endPointY) + 'px')
             .style('width', Math.abs(clickedMiddleX - endPointX) + 'px')
@@ -226,6 +230,7 @@
     function stopDrag() {
       // Stop Dragging a Text Bubble
       draggedConnections.length = 0;
+      draggedConnectionEndPoints.length = 0;
     }
 
     function createConnectionBox() {
