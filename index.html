@@ -237,13 +237,41 @@
 
       d3.select('body')
         .append('div')
-        .style('border', '1px solid #000')
+        .classed('connection_box', true)
         .style('width', '0px')
         .style('height', '0px')
-        .style('position', 'absolute')
         .style('z-index', '0')
         .call(function(parent) {
           connecting = parent;
+
+          parent.append('div')
+            .classed('v_sides v_top', true)
+            .call(function(parent) {
+              parent.append('div')
+                .classed('v_line', true);
+              parent.append('div')
+                .classed('curve_div empty', true);
+              parent.append('img')
+                .classed('curve_div top_right', true)
+                .attr('src', 'images/Curve.svg');
+
+            })
+
+          parent.append('div')
+            .classed('v_middle_div', true);
+
+          parent.append('div')
+            .classed('v_sides v_bottom', true)
+            .call(function(parent) {
+              parent.append('div')
+                .classed('v_line', true);
+              parent.append('img')
+                .classed('curve_div bottom_left', true)
+                .attr('src', 'images/Curve.svg');
+              parent.append('div')
+                .classed('curve_div empty', true);
+
+          })
         });
     }
 
