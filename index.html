@@ -37,6 +37,7 @@
     var editing = 0;
     var dragged = 0;
     var connecting = 0;
+    connecting2 = 0;
     var x1 = 0;
     var y1 = 0;
     var x2 = 0;
@@ -49,6 +50,8 @@
     var connectionBoxW = 0;
     var connectionBoxH = 0;
     var sketchId;
+    var deletingConnections = 0;
+    var switchAng = -1;
 
     document.onmousemove = function(e) {
       x = e.clientX;
@@ -66,6 +69,10 @@
       if (connecting != 0) {
         connectingBubbles();
       }
+
+      if (deletingConnections) {
+        checkForConnectionCuts();
+      }
     }
 
     d3.select('body')
@@ -78,8 +85,14 @@
     function bodyMouseDown() {
       clickedX = x;
       clickedY = y;
+      deletingConnections = 0;
+      switchAng = -1;
       if (onEmpty) {
         clicked = 0;
+
+        if (event.button == 2) {
+          deletingConnections = 1;
+        }
       }
     }
 
@@ -94,7 +107,12 @@
           clicked = 0;
         }
       }
+      if (deletingConnections) {
+        deleteSelectedConnections();
+      }
       dragged = 0;
+      deletingConnections = 0;
+      switchAng = -1;
     }
 
     function bodyLClick() {
@@ -227,7 +245,8 @@
           y2 = (parseInt(d3.select(dragged).style('margin-top'), 10) + Math.floor(parseInt(d3.select(dragged).style('height'), 10) / 2));
           connectionBoxW = Math.abs(x1 - x2);
           connectionBoxH = Math.abs(y1 - y2);
-          connections[draggedConnections[i]][0].style('margin-left', Math.min(x1, x2) + 'px')
+          connecting2 = connections[draggedConnections[i]][0];
+          connecting2.style('margin-left', Math.min(x1, x2) + 'px')
             .style('margin-top', Math.min(y1, y2) + 'px')
             .style('width', connectionBoxW + 'px')
             .style('height', connectionBoxH + 'px');
@@ -277,9 +296,18 @@
 
       let ww = sketchId.width;
       let hh = sketchId.height;
-      let xDir = Math.min(Math.max((x2 - x1), 0), 1);
-      let yDir = Math.min(Math.max((y2 - y1), 0), 1);
+      xDir = Math.min(Math.max((x2 - x1), 0), 1);
+      yDir = Math.min(Math.max((y2 - y1), 0), 1);
 
+      for (i = 0; i < connections.length; i++) {
+        if (connections[i][0] == connecting2) {
+
+          connections[i][4] = xDir;
+          connections[i][5] = yDir;
+        }
+      }
+
+      //sketchId.line(ww * (!xDir), hh * (!yDir), ww * xDir, hh * yDir);
       sketchId.bezier(ww * (!xDir), hh * (!yDir), ww / 2, hh * (!yDir), ww / 2, hh * (yDir), ww * xDir, hh * yDir);
     }
 
@@ -296,6 +324,7 @@
         .style('width', connectionBoxW + 'px')
         .style('height', connectionBoxH + 'px');
 
+      connecting2 = connecting;
       drawLine(sketchId);
     }
 
@@ -311,14 +340,56 @@
           .style('width', connectionBoxW + 'px')
           .style('height', connectionBoxH + 'px');
 
+        connecting2 = connecting;
         drawLine(sketchId);
-        connections.push([connecting, clicked.parentNode, papa, sketchId]);
+        connections.push([connecting, clicked.parentNode, papa, sketchId, xDir, yDir, -1, 0]);
 
       } else {
         connecting.remove();
       }
       connecting = 0;
       clicked = 0;
+    }
+
+    function checkForConnectionCuts() {
+      for (i = 0; i < connections.length; i++) {
+        x1 = parseInt(connections[i][0].style('margin-left'));
+        y1 = parseInt(connections[i][0].style('margin-top'));
+        let ww = parseInt(connections[i][0].style('width'));
+        let hh = parseInt(connections[i][0].style('height'));
+        x2 = x1 + ww;
+        y2 = y1 + hh;
+
+        if (((x > x1) && (x < x2)) && ((y > y1) && (y < y2))) {
+          let short = Math.min(ww, hh);
+          let long = Math.max(ww, hh);
+          let zedMax = long / short;
+          switchAng = ((connections[i][4] + connections[i][5]) != 1);
+          let zed = Math.abs(((zedMax - 1) * Math.abs((ww > hh) - switchAng)) - ((((y - y1) / hh)) * (zedMax - 1))) + 1;
+          let yy1 = (y1 + (hh * switchAng));
+          let side = (((x - x1) + (Math.max(y, yy1) - Math.min(y, yy1))) > (short * zed));
+          let prevSide = connections[i][6];
+          connections[i][6] = side;
+
+          if (prevSide != -1) {
+            if (side == (!prevSide)) {
+              // Toggle "Mark for delete" bool
+              connections[i][7] = (!connections[i][7]);
+            }
+          }
+
+        } else {
+          connections[i][6] = -1;
+        }
+      }
+    }
+
+    function deleteSelectedConnections() {
+      for (i = 0; i < connections.length; i++) {
+        if (connections[i][7] == 1) {
+          connections[i][0].remove();
+        }
+      }
     }
 
   </script>
