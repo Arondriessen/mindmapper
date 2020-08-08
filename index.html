@@ -52,6 +52,7 @@
     var sketchId;
     var deletingConnections = 0;
     var switchAng = -1;
+    var debugIndex = [[bubbles, "Nodes"], [connections, "Connections"]];
 
     document.onmousemove = function(e) {
       x = e.clientX;
@@ -79,8 +80,26 @@
       .on('mousedown', bodyMouseDown)
       .on('mouseup', bodyMouseUp)
       .on('contextmenu', bodyLClick)
-      .on('dblclick', bodyDBClick);
+      .on('dblclick', bodyDBClick)
 
+      // Debug Panel
+
+      .append('div')
+      .classed('debug_panel', true)
+      .call(function(parent) {
+        parent.append('p')
+          .classed('p_debug', true); // Nodes
+        parent.append('p')
+          .classed('p_debug', true); // Connections
+      });
+
+
+    function updateDebugPanel() {
+      d3.select('div.debug_panel')
+        .selectAll('p')
+        .data(debugIndex)
+        .text(function(d) { return (d[1] + ": " + d[0].length); });
+    }
 
     function bodyMouseDown() {
       clickedX = x;
@@ -164,6 +183,7 @@
               });
 
             editing = 1;
+            updateDebugPanel();
           }
         }
       }
@@ -343,6 +363,7 @@
         connecting2 = connecting;
         drawLine(sketchId);
         connections.push([connecting, clicked.parentNode, papa, sketchId, xDir, yDir, -1, 0]);
+        updateDebugPanel();
 
       } else {
         connecting.remove();
@@ -388,6 +409,8 @@
       for (i = 0; i < connections.length; i++) {
         if (connections[i][7] == 1) {
           connections[i][0].remove();
+          connections.splice(i, 1);
+          updateDebugPanel();
         }
       }
     }

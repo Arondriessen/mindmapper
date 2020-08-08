@@ -62,3 +62,13 @@
   height: 2px;
   background-color: #000;
 }
+
+.debug_panel {
+  position: absolute;
+  left: 0%;
+  top: 0%;
+  right: auto;
+  bottom: auto;
+  padding-top: 20px;
+  padding-left: 20px;
+}
