@@ -132,17 +132,24 @@ function bodyMouseMove() {
   if (state == 2) {
 
     // Update dragged node position
+    // Update attached connections' size/position
 
     let x = getElementCenterX(clicked);
     let y = getElementCenterY(clicked);
 
     clicked.style('margin-left', (mX + xOffset) + 'px')
-    .style('margin-top', (mY + yOffset) + 'px');
+      .style('margin-top', (mY + yOffset) + 'px');
 
     if (draggedConnections.length > 0) {
       for (let i = 0; i < draggedConnections.length; i++) {
 
-        resizeElement(draggedConnections[i][0], draggedConnections[i][1], draggedConnections[i][2], x, y);
+        let obj = draggedConnections[i];
+        let x2 = obj[1];
+        let y2 = obj[2];
+        let dir = (((x < x2) && (y < y2)) || ((x > x2) && (y > y2)));
+
+        resizeElement(obj[0], x, y, x2, y2);
+        drawLine(obj[3], Math.abs(x - x2), Math.abs(y - y2), dir);
       }
     }
   }
@@ -151,7 +158,10 @@ function bodyMouseMove() {
 
     // Update drawn connection position/size
 
+    let dir = (((clickedX < mX) && (clickedY < mY)) || ((clickedX > mX) && (clickedY > mY)));
+
     resizeElement(connecting, clickedX, clickedY, mX, mY);
+    drawLine(sketchId, Math.abs(clickedX - mX), Math.abs(clickedY - mY), dir);
   }
 
   if (state == 4) {
@@ -167,11 +177,15 @@ function bodyDBClick() {
 
   if (onEmpty) {
 
-    if (state == 0) {
+    if (!mouseMoved) {
 
-      // Create new node at mouse position
+      if (state == 0) {
 
-      createNode(clickedX, clickedY, -1);
+        // Create new node at mouse position
+
+        createNode(-1, clickedX, clickedY);
+      }
+    }
   }
 }
 
@@ -189,21 +203,34 @@ function bodyRClick() {
 function nodeHover() {
 
   // Set onEmpty to false to disable stacking new nodes
-  // Display node handle *****
+  // Display node handle
 
   onEmpty = 0;
+
+  d3.select(this)
+     .select('div.text_bubble_handle')
+     .style('opacity', '100%');
 }
 
 
 
 function nodeHoverOut() {
 
-  // Hide node handle *****
+  // Hide node handle
+
+  d3.select(this)
+     .select('div.text_bubble_handle')
+     .style('opacity', '0%');
 }
 
 
 
 function nodeHandleMouseDown() {
+
+  // Set onEmpty to false to disable stacking new nodes
+
+  onEmpty = 0;
+
 
   // Set state to 2 (dragging node)
   // Save node parent to "clicked"
@@ -223,7 +250,7 @@ function nodeHandleMouseDown() {
     for (i = 0; i < nodeConnections.length; i++) {
       let c = connections[getIndexFromID(nodeConnections[i])];
       let num = ((c[0] == clickedX) && (c[1] == clickedY)) * 2;
-      draggedConnections.push([d3.select('#' + nodeConnections[i]), c[0 + num], c[1 + num]]);
+      draggedConnections.push([d3.select('#' + nodeConnections[i]), c[0 + num], c[1 + num], c[4]]);
     }
   }
 }
@@ -273,7 +300,7 @@ function nodeChildMouseDown() {
       // Set state to 3 (drawing connection)
 
       event.preventDefault();
-      createConnection(-1);
+      createConnection(-1, clickedX, clickedY, mX, mY);
       state = 3;
     }
   }
@@ -302,9 +329,11 @@ function nodeChildMouseUp() {
       let thisId = connecting.attr('id');
       let clickedId = clicked.attr('id');
       let releasedOnId = releasedOn.attr('id');
+      let dir = (((clickedX < x2) && (clickedY < y2)) || ((clickedX > x2) && (clickedY > y2)));
 
       resizeElement(connecting, clickedX, clickedY, x2, y2);
-      connections.push([clickedX, clickedY, x2, y2]);
+      drawLine(sketchId, Math.abs(clickedX - x2), Math.abs(clickedY - y2), dir);
+      connections.push([clickedX, clickedY, x2, y2, sketchId]);
       nodes[getIndexFromID(clickedId)][2].push(thisId);
       nodes[getIndexFromID(releasedOnId)][2].push(thisId);
       connectionCount++;
@@ -323,7 +352,7 @@ function nodeChildMouseUp() {
 
 
 
-function createNode(x, y, id) {
+function createNode(id, x, y) {
 
   // Check if old or new id should be used and define it
   // If new, increment total number of nodes by one
@@ -380,7 +409,7 @@ function createNode(x, y, id) {
 
 
 
-function createConnection(id) {
+function createConnection(id, x, y, x2, y2) {
 
   // Check if old or new id should be used and define it
   // Create id string
@@ -393,12 +422,42 @@ function createConnection(id) {
   d3.select('body')
     .append('div')
     .attr('id', id3)
-    .style('border', '1px solid #000')
     .style('position', 'absolute')
     .style('z-index', '0')
     .call(function(parent) {
       connecting = parent;
     });
+
+  new p5(sketch_connection, id3)
+
+  function sketch_connection(p) {
+    sketchId = p;
+    sketchId.setup = function () {
+      sketchId.createCanvas(0,0);
+      sketchId.noFill();
+      sketchId.stroke('#2F323A');
+      sketchId.strokeWeight(2);
+    }
+  }
+
+  connecting.select('canvas')
+    .style('width', '100%')
+    .style('height', '100%');
+
+  // Set connection position/size
+  // Draw connection line
+
+  let dir = (((x < x2) && (y < y2)) || ((x2 > x) && (y2 > y)));
+  resizeElement(connecting, x, y, x2, y2);
+  drawLine(sketchId, Math.abs(x - x2), Math.abs(y - y2), dir);
+}
+
+
+
+function drawLine(sketchId, w, h, dir) {
+  sketchId.resizeCanvas(w, h);
+  sketchId.clear();
+  sketchId.bezier(w * (!dir), 0, w / 2, 0, w / 2, h, w * dir, h);
 }
 
 
