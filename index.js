@@ -15,7 +15,7 @@ var onEmpty = 1;
 // 1 = Mouse is hovering over element
 
 var mX = 0; // Mouse x position
-var mX = 0; // Mouse y position
+var mY = 0; // Mouse y position
 var clickedX = 0; // X position of last click
 var clickedY = 0; // Y position of last click
 var mouseMoved = 0; // State of mouse movement between click and release
@@ -31,7 +31,7 @@ var connecting;
 
 var xOffset = 0;
 var yOffset = 0;
-var draggedConnections = [];
+var selectedConnections = [];
 
 
 
@@ -50,24 +50,30 @@ d3.select('body')
 
 function bodyMouseDown() {
 
-  if (state < 2) {
-
-    // Update last clicked position
-
-    clickedX = mX;
-    clickedY = mY;
-  }
-
-
   // Set mouse movement tracking variable to default
 
   mouseMoved = 0;
 
 
-  // Reset state
-  // Un-focus all nodes *****
+  if (state < 2) {
 
-  if (state < 2) { state = 0; }
+    // Reset state
+    // Un-focus all nodes *****
+    // Update last clicked position
+
+    state = 0;
+    clickedX = mX;
+    clickedY = mY;
+
+
+    if (onEmpty) {
+
+      if (event.button == 2) {
+
+        state = 4;
+      }
+    }
+  }
 }
 
 
@@ -86,7 +92,7 @@ function bodyMouseup() {
       c[1 + num] = getElementCenterY(clicked);
     }
 
-    draggedConnections.length = 0;
+    selectedConnections.length = 0;
     state = 0;
   }
 
@@ -105,7 +111,16 @@ function bodyMouseup() {
 
   if (state == 4) {
 
-    // Delete "cut" connections *****
+    // Delete "cut" connections
+
+    for (let i = 0; i < connections.length; i++) {
+
+      let a = connections[i];
+
+      a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
+      if (a[5]) { d3.select('#connection-' + i).remove(); }
+    }
+    state = 0;
   }
 }
 
@@ -140,19 +155,20 @@ function bodyMouseMove() {
     clicked.style('margin-left', (mX + xOffset) + 'px')
       .style('margin-top', (mY + yOffset) + 'px');
 
-    if (draggedConnections.length > 0) {
-      for (let i = 0; i < draggedConnections.length; i++) {
+    if (selectedConnections.length > 0) {
+      for (let i = 0; i < selectedConnections.length; i++) {
 
-        let obj = draggedConnections[i];
+        let obj = selectedConnections[i];
         let x2 = obj[1];
         let y2 = obj[2];
         let dir = (((x < x2) && (y < y2)) || ((x > x2) && (y > y2)));
 
         resizeElement(obj[0], x, y, x2, y2);
-        drawLine(obj[3], Math.abs(x - x2), Math.abs(y - y2), dir);
+        drawLine(obj[3], Math.abs(x - x2), Math.abs(y - y2), dir, -1);
       }
     }
   }
+
 
   if (state == 3) {
 
@@ -161,12 +177,22 @@ function bodyMouseMove() {
     let dir = (((clickedX < mX) && (clickedY < mY)) || ((clickedX > mX) && (clickedY > mY)));
 
     resizeElement(connecting, clickedX, clickedY, mX, mY);
-    drawLine(sketchId, Math.abs(clickedX - mX), Math.abs(clickedY - mY), dir);
+    drawLine(sketchId, Math.abs(clickedX - mX), Math.abs(clickedY - mY), dir, -1);
   }
+
 
   if (state == 4) {
 
-    // Check for connection line cuts *****
+    // Check for connection line cuts
+
+    for (let i = 0; i < connections.length; i++) {
+
+      let a = connections[i];
+      let dir = (((a[0] < a[2]) && (a[1] < a[3])) || ((a[0] > a[2]) && (a[1] > a[3])));
+
+      a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
+      drawLine(a[4], Math.abs(a[0] - a[2]), Math.abs(a[1] - a[3]), dir, a[5]);
+    }
   }
 
 }
@@ -250,7 +276,7 @@ function nodeHandleMouseDown() {
     for (i = 0; i < nodeConnections.length; i++) {
       let c = connections[getIndexFromID(nodeConnections[i])];
       let num = ((c[0] == clickedX) && (c[1] == clickedY)) * 2;
-      draggedConnections.push([d3.select('#' + nodeConnections[i]), c[0 + num], c[1 + num], c[4]]);
+      selectedConnections.push([d3.select('#' + nodeConnections[i]), c[0 + num], c[1 + num], c[4]]);
     }
   }
 }
@@ -332,7 +358,7 @@ function nodeChildMouseUp() {
       let dir = (((clickedX < x2) && (clickedY < y2)) || ((clickedX > x2) && (clickedY > y2)));
 
       resizeElement(connecting, clickedX, clickedY, x2, y2);
-      drawLine(sketchId, Math.abs(clickedX - x2), Math.abs(clickedY - y2), dir);
+      drawLine(sketchId, Math.abs(clickedX - x2), Math.abs(clickedY - y2), dir, -1);
       connections.push([clickedX, clickedY, x2, y2, sketchId]);
       nodes[getIndexFromID(clickedId)][2].push(thisId);
       nodes[getIndexFromID(releasedOnId)][2].push(thisId);
@@ -343,7 +369,7 @@ function nodeChildMouseUp() {
       connecting.remove();
     }
 
-    draggedConnections.length = 0;
+    selectedConnections.length = 0;
     state = 0;
   }
 }
@@ -431,11 +457,11 @@ function createConnection(id, x, y, x2, y2) {
   new p5(sketch_connection, id3)
 
   function sketch_connection(p) {
+
     sketchId = p;
     sketchId.setup = function () {
       sketchId.createCanvas(0,0);
       sketchId.noFill();
-      sketchId.stroke('#2F323A');
       sketchId.strokeWeight(2);
     }
   }
@@ -449,14 +475,20 @@ function createConnection(id, x, y, x2, y2) {
 
   let dir = (((x < x2) && (y < y2)) || ((x2 > x) && (y2 > y)));
   resizeElement(connecting, x, y, x2, y2);
-  drawLine(sketchId, Math.abs(x - x2), Math.abs(y - y2), dir);
+  drawLine(sketchId, Math.abs(x - x2), Math.abs(y - y2), dir, -1);
 }
 
 
 
-function drawLine(sketchId, w, h, dir) {
+function drawLine(sketchId, w, h, dir, selected) {
+
+  // Draw bezier line between connection points
+
   sketchId.resizeCanvas(w, h);
   sketchId.clear();
+  sketchId.stroke('#2F323A');
+  if (selected == 1) { sketchId.stroke(255); }
+  console.log(selected);
   sketchId.bezier(w * (!dir), 0, w / 2, 0, w / 2, h, w * dir, h);
 }
 
@@ -490,9 +522,28 @@ function getElementCenterY(obj) {
   return parseInt(obj.style('margin-top'), 10) + Math.floor(parseInt(obj.style('height'), 10) / 2);
 }
 
+
+
 function getIndexFromID(id) {
 
   // Extract array index from element id
 
   return id.split('-')[1];
+}
+
+
+
+function intersects(a,b,c,d,p,q,r,s) {
+
+  // returns true iff the line from (a,b)->(c,d) intersects with (p,q)->(r,s)
+
+  var det, gamma, lambda;
+  det = (c - a) * (s - q) - (r - p) * (d - b);
+  if (det === 0) {
+    return false;
+  } else {
+    lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
+    gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
+    return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+  }
 }

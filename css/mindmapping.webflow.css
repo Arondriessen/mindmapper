@@ -15,6 +15,7 @@
 .text_bubble {
   margin-bottom: 0px;
   padding: 18px 18px 20px;
+  border-radius: 2px;
   background-color: #2F323A;
   color: #F4F4F5;
   font-size: 22px;
