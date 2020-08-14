@@ -70,6 +70,10 @@ function bodyMouseDown() {
 
       if (event.button == 2) {
 
+        // Create p5 sketch for cutting line
+        // Set state to 4 (cutting connections)
+
+        createConnection('cuttingTool', mX, mY, mX, mY);
         state = 4;
       }
     }
@@ -112,6 +116,8 @@ function bodyMouseup() {
   if (state == 4) {
 
     // Delete "cut" connections
+    // Delete cutting tool sketch
+    // Reset state to default
 
     for (let i = 0; i < connections.length; i++) {
 
@@ -120,6 +126,7 @@ function bodyMouseup() {
       a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
       if (a[5]) { d3.select('#connection-' + i).remove(); }
     }
+    connecting.remove();
     state = 0;
   }
 }
@@ -164,7 +171,7 @@ function bodyMouseMove() {
         let dir = (((x < x2) && (y < y2)) || ((x > x2) && (y > y2)));
 
         resizeElement(obj[0], x, y, x2, y2);
-        drawLine(obj[3], Math.abs(x - x2), Math.abs(y - y2), dir, -1);
+        drawLine(obj[3], x, y, x2, y2, 0, 0);
       }
     }
   }
@@ -177,21 +184,27 @@ function bodyMouseMove() {
     let dir = (((clickedX < mX) && (clickedY < mY)) || ((clickedX > mX) && (clickedY > mY)));
 
     resizeElement(connecting, clickedX, clickedY, mX, mY);
-    drawLine(sketchId, Math.abs(clickedX - mX), Math.abs(clickedY - mY), dir, -1);
+    drawLine(sketchId, clickedX, clickedY, mX, mY, 0, 0);
   }
 
 
   if (state == 4) {
 
+    // Draw cutting line
     // Check for connection line cuts
+    // Highlight connection selected for cutting
+
+    let dir = (((clickedX < mX) && (clickedY < mY)) || ((clickedX > mX) && (clickedY > mY)));
+
+    resizeElement(connecting, clickedX, clickedY, mX, mY);
+    drawLine(sketchId, clickedX, clickedY, mX, mY, 1, 0);
 
     for (let i = 0; i < connections.length; i++) {
 
       let a = connections[i];
-      let dir = (((a[0] < a[2]) && (a[1] < a[3])) || ((a[0] > a[2]) && (a[1] > a[3])));
 
       a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
-      drawLine(a[4], Math.abs(a[0] - a[2]), Math.abs(a[1] - a[3]), dir, a[5]);
+      drawLine(a[4], a[0], a[1], a[2], a[3], 0, a[5]);
     }
   }
 
@@ -355,10 +368,9 @@ function nodeChildMouseUp() {
       let thisId = connecting.attr('id');
       let clickedId = clicked.attr('id');
       let releasedOnId = releasedOn.attr('id');
-      let dir = (((clickedX < x2) && (clickedY < y2)) || ((clickedX > x2) && (clickedY > y2)));
 
       resizeElement(connecting, clickedX, clickedY, x2, y2);
-      drawLine(sketchId, Math.abs(clickedX - x2), Math.abs(clickedY - y2), dir, -1);
+      drawLine(sketchId, clickedX, clickedY, x2, y2, 0, 0);
       connections.push([clickedX, clickedY, x2, y2, sketchId]);
       nodes[getIndexFromID(clickedId)][2].push(thisId);
       nodes[getIndexFromID(releasedOnId)][2].push(thisId);
@@ -454,7 +466,26 @@ function createConnection(id, x, y, x2, y2) {
       connecting = parent;
     });
 
-  new p5(sketch_connection, id3)
+  createP5Canvas(id3);
+
+  connecting.select('canvas')
+    .style('width', '100%')
+    .style('height', '100%');
+
+  // Set connection position/size
+  // Draw connection line
+
+  resizeElement(connecting, x, y, x2, y2);
+  drawLine(sketchId, x, y, x2, y2, 0, 0);
+}
+
+
+
+function createP5Canvas(pId) {
+
+  // Create p5 sketch bound to given parent id
+
+  new p5(sketch_connection, pId)
 
   function sketch_connection(p) {
 
@@ -465,31 +496,25 @@ function createConnection(id, x, y, x2, y2) {
       sketchId.strokeWeight(2);
     }
   }
-
-  connecting.select('canvas')
-    .style('width', '100%')
-    .style('height', '100%');
-
-  // Set connection position/size
-  // Draw connection line
-
-  let dir = (((x < x2) && (y < y2)) || ((x2 > x) && (y2 > y)));
-  resizeElement(connecting, x, y, x2, y2);
-  drawLine(sketchId, Math.abs(x - x2), Math.abs(y - y2), dir, -1);
 }
 
 
 
-function drawLine(sketchId, w, h, dir, selected) {
+function drawLine(sketchId, x, y, x2, y2, lineType, selected) {
 
   // Draw bezier line between connection points
+
+  let w = Math.abs(x - x2);
+  let h = Math.abs(y - y2);
+  let dir = (((x < x2) && (y < y2)) || ((x > x2) && (y > y2)));
 
   sketchId.resizeCanvas(w, h);
   sketchId.clear();
   sketchId.stroke('#2F323A');
-  if (selected == 1) { sketchId.stroke(255); }
-  console.log(selected);
-  sketchId.bezier(w * (!dir), 0, w / 2, 0, w / 2, h, w * dir, h);
+  if (selected) { sketchId.stroke(255); }
+
+  if (!lineType) { sketchId.bezier(w * (!dir), 0, w / 2, 0, w / 2, h, w * dir, h); }
+  else { sketchId.line(w * (!dir), 0, w * dir, h); }
 }
 
 
