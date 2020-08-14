@@ -19,6 +19,7 @@ var mY = 0; // Mouse y position
 var clickedX = 0; // X position of last click
 var clickedY = 0; // Y position of last click
 var mouseMoved = 0; // State of mouse movement between click and release
+var activeKey = 0;
 
 var nodes = [];
 var connections = [];
@@ -35,7 +36,10 @@ var selectedConnections = [];
 
 
 
-// Add default mouse interactions to body
+// Add default interactions to body
+
+document.addEventListener('keydown', getKey);
+document.addEventListener('keyup', function() { activeKey = 0; });
 
 d3.select('body')
   .on('mousedown', bodyMouseDown)
@@ -68,7 +72,7 @@ function bodyMouseDown() {
 
     if (onEmpty) {
 
-      if (event.button == 2) {
+      if (getM() == 2) {
 
         // Create p5 sketch for cutting line
         // Set state to 4 (cutting connections)
@@ -88,14 +92,19 @@ function bodyMouseup() {
 
     // Release dragged nodes
 
+    let x = getElementCenterX(clicked);
+    let y = getElementCenterY(clicked);
+
     let nodeConnections = nodes[getIndexFromID(clicked.attr('id'))][2];
     for (i = 0; i < nodeConnections.length; i++) {
       let c = connections[getIndexFromID(nodeConnections[i])];
       let num = ((c[2] == clickedX) && (c[3] == clickedY)) * 2;
-      c[0 + num] = getElementCenterX(clicked);
-      c[1 + num] = getElementCenterY(clicked);
+      c[0 + num] = x;
+      c[1 + num] = y;
     }
 
+    nodes[getIndexFromID(clicked.attr('id'))][0] = x;
+    nodes[getIndexFromID(clicked.attr('id'))][1] = y;
     selectedConnections.length = 0;
     state = 0;
   }
@@ -277,19 +286,23 @@ function nodeHandleMouseDown() {
   // Add child connections to an array
 
   if (state < 2) {
-    state = 2;
-    clicked = d3.select(this.parentNode);
-    clickedX = getElementCenterX(clicked);
-    clickedY = getElementCenterY(clicked);
 
-    xOffset = (parseInt(clicked.style('margin-left'), 10) - mX);
-    yOffset = (parseInt(clicked.style('margin-top'), 10) - mY);
+    if (getM() == 0) {
 
-    let nodeConnections = nodes[getIndexFromID(clicked.attr('id'))][2];
-    for (i = 0; i < nodeConnections.length; i++) {
-      let c = connections[getIndexFromID(nodeConnections[i])];
-      let num = ((c[0] == clickedX) && (c[1] == clickedY)) * 2;
-      selectedConnections.push([d3.select('#' + nodeConnections[i]), c[0 + num], c[1 + num], c[4]]);
+      state = 2;
+      clicked = d3.select(this.parentNode);
+      clickedX = getElementCenterX(clicked);
+      clickedY = getElementCenterY(clicked);
+
+      xOffset = (parseInt(clicked.style('margin-left'), 10) - mX);
+      yOffset = (parseInt(clicked.style('margin-top'), 10) - mY);
+
+      let nodeConnections = nodes[getIndexFromID(clicked.attr('id'))][2];
+      for (i = 0; i < nodeConnections.length; i++) {
+        let c = connections[getIndexFromID(nodeConnections[i])];
+        let num = ((c[0] == clickedX) && (c[1] == clickedY)) * 2;
+        selectedConnections.push([d3.select('#' + nodeConnections[i]), c[0 + num], c[1 + num], c[4]]);
+      }
     }
   }
 }
@@ -321,12 +334,11 @@ function nodeChildMouseDown() {
 
     clicked = d3.select(this.parentNode);
 
-
-    if (event.button == 0) {
+    if (getM() == 0) {
 
       state = 1;
 
-    } else if (event.button == 2) {
+    } else if (getM() == 2) {
 
       // Update last clicked position
 
@@ -388,6 +400,71 @@ function nodeChildMouseUp() {
 
 
 
+function nodeInput() {
+
+  // Update attached connections when typing
+
+  let node = nodes[getIndexFromID(clicked.attr('id'))];
+  let x = getElementCenterX(clicked); // New position
+  let y = getElementCenterY(clicked);
+  let x3 = node[0];  // Old position
+  let y3 = node[1];
+  let nodeConnections = node[2];
+
+  for (i = 0; i < nodeConnections.length; i++) {
+
+    let c = connections[getIndexFromID(nodeConnections[i])];
+    let num = ((c[2] == x3) && (c[3] == y3)) * 2;
+
+    let x2 = c[2 - num]; // Moved connection ednpoint position
+    let y2 = c[3 - num];
+    let dir = (((x < x2) && (y < y2)) || ((x > x2) && (y > y2)));
+    let obj = d3.select('#' + nodeConnections[i]);
+
+    resizeElement(obj, x, y, x2, y2);
+    drawLine(c[4], x, y, x2, y2, 0, 0);
+
+    c[0 + num] = x;
+    c[1 + num] = y;
+  }
+
+  node[0] = x;
+  node[1] = y;
+}
+
+
+
+function getKey(event) {
+
+  // Return key pressed
+
+  if (event.isComposing || event.keyCode === 229) {
+    return;
+  }
+
+  if (event.keyCode === 17) { activeKey = 17; }
+}
+
+
+
+
+
+function getM() {
+
+  // Return mouse input (with key combinations)
+
+  let m;
+  if (event.button == 0) {
+    m = 0;
+    if (activeKey == 17) {
+      m = 2;
+    }
+  } else if (event.button == 2) {
+    m = 2;
+  }
+  return m;
+}
+
 
 
 function createNode(id, x, y) {
@@ -408,15 +485,18 @@ function createNode(id, x, y) {
   // Save the node's text containing child in "clicked"
 
   d3.select('body')
+    .on('keydown', getKey(event))
     .append('div')
     .classed('text_bubble_wrap', true)
     .attr('id', id3)
-    .style('margin-left', (x - 14) + 'px')
-    .style('margin-top', (y - 32) + 'px')
+    .style('margin-left', (x - 18) + 'px')
+    .style('margin-top', (y - 34) + 'px')
     .style('z-index', '10')
     .on('mouseenter', nodeHover)
     .on('mouseleave', nodeHoverOut)
     .call(function(parent) {
+
+      clicked = parent;
 
       parent.append('div')
         .classed('text_bubble_handle', true)
@@ -437,10 +517,10 @@ function createNode(id, x, y) {
         .style('display', 'inline-block')
         .on('mousedown', nodeChildMouseDown)
         .on('mouseup', nodeChildMouseUp)
-        .call(function(parent) { clicked = parent.parentNode; })
         .append('p')
         .classed('text_bubble', true)
         .attr('contenteditable', 'true')
+        .on('input', nodeInput)
         .node().focus();
     });
 }
