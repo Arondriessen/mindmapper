@@ -31,6 +31,7 @@ var connectionCount = 0;
 
 var clicked;
 var connecting;
+var sketchId;
 
 var xOffset = 0;
 var yOffset = 0;
@@ -76,20 +77,20 @@ function bodyMouseDown() {
     clickedX = mX;
     clickedY = mY;
 
-    if (state == 1) {
-
-      if (clicked.select('p').text() == "") {
-
-        // Delete latest node
-
-        clicked.remove();
-      }
-    }
-
-    state = 0;
-
 
     if (onEmpty) {
+
+      if (state == 1) {
+
+        if (clicked.select('p').text() == "") {
+
+          // Delete latest node
+
+          clicked.remove();
+        }
+      }
+
+      state = 0;
 
       if (getM() == 2) {
 
@@ -407,7 +408,7 @@ function nodeChildMouseUp() {
 
     let releasedOn = d3.select(this.parentNode);
 
-    if (releasedOn != clicked) {
+    if (releasedOn.attr('id') != clicked.attr('id')) {
 
       let x2 = getElementCenterX(releasedOn);
       let y2 = getElementCenterY(releasedOn);
@@ -486,9 +487,6 @@ function getKey(event) {
 
 
 
-
-
-
 // Other Functions
 
 function getM() {
@@ -527,7 +525,6 @@ function createNode(id, x, y) {
   // Save the node's text containing child in "clicked"
 
   d3.select('body')
-    .on('keydown', getKey(event))
     .append('div')
     .classed('text_bubble_wrap', true)
     .attr('id', id3)
