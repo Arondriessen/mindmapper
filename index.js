@@ -311,6 +311,8 @@ function nodeHoverOut() {
 
 function nodeHandleMouseDown() {
 
+  event.preventDefault();
+
   // Set onEmpty to false to disable stacking new nodes
 
   onEmpty = 0;
@@ -482,6 +484,9 @@ function getKey(event) {
 
   if (event.keyCode === 17) { activeKey = 17; }
 }
+
+
+
 
 
 
