@@ -1,6 +1,8 @@
 
 
 
+
+
 // Default variables
 
 var state = 0;
@@ -36,6 +38,8 @@ var selectedConnections = [];
 
 
 
+
+
 // Add default interactions to body
 
 document.addEventListener('keydown', getKey);
@@ -50,7 +54,9 @@ d3.select('body')
 
 
 
-// Functions
+
+
+// Input Functions
 
 function bodyMouseDown() {
 
@@ -61,13 +67,26 @@ function bodyMouseDown() {
 
   if (state < 2) {
 
-    // Reset state
     // Un-focus all nodes *****
     // Update last clicked position
+    // Delete latest node if empty
+    // Reset state
+    // If right clicked, set state to 4 (connection cutting tool)
 
-    state = 0;
     clickedX = mX;
     clickedY = mY;
+
+    if (state == 1) {
+
+      if (clicked.select('p').text() == "") {
+
+        // Delete latest node
+
+        clicked.remove();
+      }
+    }
+
+    state = 0;
 
 
     if (onEmpty) {
@@ -258,6 +277,14 @@ function nodeHover() {
   d3.select(this)
      .select('div.text_bubble_handle')
      .style('opacity', '100%');
+
+  if (state == 3) {
+
+    // Scale up selected node
+
+    d3.select(this)
+      .style('transform', 'scale(1.02)');
+  }
 }
 
 
@@ -269,6 +296,14 @@ function nodeHoverOut() {
   d3.select(this)
      .select('div.text_bubble_handle')
      .style('opacity', '0%');
+
+  if (state == 3) {
+
+   // Reset scale
+
+   d3.select(this)
+     .style('transform', 'scale(1)');
+  }
 }
 
 
@@ -393,6 +428,8 @@ function nodeChildMouseUp() {
       connecting.remove();
     }
 
+
+    releasedOn.style('transform', 'scale(1)');
     selectedConnections.length = 0;
     state = 0;
   }
@@ -448,6 +485,11 @@ function getKey(event) {
 
 
 
+
+
+
+
+// Other Functions
 
 function getM() {
 
