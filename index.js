@@ -536,9 +536,16 @@ function nodeChildMouseUp() {
 
 function nodeInput() {
 
+  // Save edited text into nodes array
+
+  let id = clicked.attr('id');
+  let node = nodes[getIndexFromID(id)];
+
+  node[3] = d3.select('#' + id).text();
+
+
   // Update attached connections when typing
 
-  let node = nodes[getIndexFromID(clicked.attr('id'))];
   let x = getElementCenterX(clicked); // New position
   let y = getElementCenterY(clicked);
   let x3 = node[0];  // Old position
@@ -620,7 +627,7 @@ function createNode(id, x, y) {
   let id2 = nodeCount;
   if (id != -1) { id2 = id; } else { nodeCount++; }
   let id3 = 'node-' + id2;
-  nodes.push([x, y, []]);
+  nodes.push([x, y, [], ""]);
 
 
   // Create new node with given parameters
