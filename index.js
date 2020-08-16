@@ -157,7 +157,7 @@ function bodyMouseup() {
     nodes[getIndexFromID(clicked.attr('id'))][0] = x;
     nodes[getIndexFromID(clicked.attr('id'))][1] = y;
     selectedConnections.length = 0;
-    state = 0;
+    state = 1;
   }
 
 
