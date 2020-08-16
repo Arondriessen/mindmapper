@@ -73,3 +73,26 @@
   height: 2px;
   background-color: #484B52;
 }
+
+.button {
+  margin-top: 20px;
+  margin-right: 20px;
+  padding: 15px 20px;
+  float: right;
+  border-radius: 2px;
+  background-color: rgba(244, 244, 245, 0.04);
+  -webkit-transition: all 150ms ease;
+  transition: all 150ms ease;
+  color: #f4f4f5;
+  opacity: 50%;
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.button:hover {
+  background-color: hsla(0, 0%, 100%, 0.07);
+}
+
+.button:active {
+  background-color: hsla(0, 0%, 100%, 0.04);
+}

@@ -34,9 +34,11 @@ var clicked;
 var connecting;
 var sketchId;
 
+var selectedNodes = [];
+var selectedConnections = [];
+
 var xOffset = 0;
 var yOffset = 0;
-var selectedConnections = [];
 
 
 
@@ -53,6 +55,10 @@ d3.select('body')
   .on('mousemove', bodyMouseMove)
   .on('dblclick', bodyDBClick)
   .on('contextmenu', bodyRClick);
+
+d3.select('a.button')
+  .on('mousedown', function() { onEmpty = 0; })
+  .on('click', deleteSelection);
 
 
 
@@ -71,6 +77,7 @@ function bodyMouseDown() {
 
     // Un-focus all nodes *****
     // Update last clicked position
+    // Clear selection arrays
     // Delete latest node if empty
     // Reset state
     // If right clicked, set state to 4 (connection cutting tool)
@@ -81,6 +88,9 @@ function bodyMouseDown() {
 
     if (onEmpty) {
 
+
+      // Delete new node if empty
+
       if (state == 1) {
 
         if (clicked.select('p').text() == "") {
@@ -89,12 +99,18 @@ function bodyMouseDown() {
 
           clicked.remove();
         }
-      } else if (state == 5) {
+      } else {
 
-        // Cancel multi-selection
+        // Prevent contextmenu from showing
 
-
+        event.preventDefault();
       }
+
+
+      // Cancel all active selections
+
+      deselectAll();
+
 
       state = 0;
 
@@ -141,7 +157,7 @@ function bodyMouseup() {
     nodes[getIndexFromID(clicked.attr('id'))][0] = x;
     nodes[getIndexFromID(clicked.attr('id'))][1] = y;
     selectedConnections.length = 0;
-    state = 0;
+    state = 1;
   }
 
 
@@ -177,23 +193,29 @@ function bodyMouseup() {
 
   if (state == 5) {
 
-    // Delete selected nodes
-    // Delete attached connections
+    // Add nodes in selection box to selectedNodes
+    // Add attached connections to selectedConnections
     // Close selection tool
 
     for (let i = 0; i < nodes.length; i++) {
 
-      if (nodes[i][3]) {
+      let a = nodes[i];
 
-        a = nodes[i][2];
+      if (isInBox(a[0], a[1], clickedX, clickedY, mX, mY)) {
 
-        for (let i = 0; i < a.length; i++) {
+        aa = a[2];
 
-          d3.select('#' + a[i]).remove();
+        for (let y = 0; y < aa.length; y++) {
+
+          selectedConnections.push(d3.select('#' + aa[y]));
         }
 
-        d3.select('#node-' + i).remove();
+        selectedNodes.push(d3.select('#node-' + i));
       }
+    }
+
+    if (selectedNodes.length > 0) {
+      d3.select('a.button').style('opacity', '100%');
     }
 
     connecting.remove();
@@ -293,30 +315,27 @@ function bodyMouseMove() {
     for (let i = 0; i < nodes.length; i++) {
 
       let a = nodes[i];
-      let s = 0;
       let c = '';
 
-      if ((a[0] > (Math.min(clickedX, mX))) && (a[0] < (Math.max(clickedX, mX)))) {
+      if (isInBox(a[0], a[1], clickedX, clickedY, mX, mY)) {
 
-        if ((a[1] > (Math.min(clickedY, mY))) && (a[1] < (Math.max(clickedY, mY)))) {
-
-          s = 1;
-          c += '3F4047';
-
-        } else { c = '2F3138'; }
+        c = '3F4047';
 
       } else { c = '2F3138'; }
 
-      a[3] = s;
       d3.select('#node-' + i).select('p').style('background-color', '#' + c);
     }
   }
-
 }
 
 
 
 function bodyDBClick() {
+
+  // Prevent contextmenu from showing
+
+  event.preventDefault();
+
 
   if (onEmpty) {
 
@@ -554,8 +573,11 @@ function getKey(event) {
   // Return key pressed
 
   if (event.isComposing || event.keyCode === 229) { return; }
+
   if (event.keyCode === 17) { activeKey = 17; }
   if (event.keyCode === 18) { activeKey = 18; }
+
+  if (event.keyCode === 46) { deleteSelection(); }
 }
 
 
@@ -598,7 +620,7 @@ function createNode(id, x, y) {
   let id2 = nodeCount;
   if (id != -1) { id2 = id; } else { nodeCount++; }
   let id3 = 'node-' + id2;
-  nodes.push([x, y, [], 0]);
+  nodes.push([x, y, []]);
 
 
   // Create new node with given parameters
@@ -730,6 +752,45 @@ function resizeElement(obj, x, y, x2, y2) {
 
 
 
+function deleteSelection() {
+
+  // Delete selected nodes
+  // Darken delete button (inactive)
+
+  for (let i = 0; i < selectedNodes.length; i++) {
+
+    selectedNodes[i].remove();
+  }
+
+  // Delete selected connetions
+
+  for (let i = 0; i < selectedConnections.length; i++) {
+
+      selectedConnections[i].remove();
+  }
+
+  d3.select('a.button').style('opacity', '');
+}
+
+
+
+function deselectAll() {
+
+  // Deselect selected nodes and connections
+  // Darken delete button (inactive)
+
+  for (let i = 0; i < selectedNodes.length; i++) {
+
+    selectedNodes[i].select('p').style('background-color', '#2F3138');
+  }
+
+  selectedNodes.length = 0;
+  selectedConnections.length = 0;
+  d3.select('a.button').style('opacity', '50%');
+}
+
+
+
 function getElementCenterX(obj) {
 
   // Calculate and return centered X position of element
@@ -770,4 +831,19 @@ function intersects(a,b,c,d,p,q,r,s) {
     gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
     return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
   }
+}
+
+
+
+function isInBox(x, y, x2, y2, x3, y3) {
+
+  if ((x > (Math.min(x2, x3))) && (x < (Math.max(x2, x3)))) {
+
+    if ((y > (Math.min(y2, y3))) && (y < (Math.max(y2, y3)))) {
+
+      return true;
+
+    } else { return false; }
+
+  } else { return false; }
 }
