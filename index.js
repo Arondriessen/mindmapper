@@ -769,7 +769,7 @@ function deleteSelection() {
       selectedConnections[i].remove();
   }
 
-  d3.select('a.button').style('opacity', '20%');
+  d3.select('a.button').style('opacity', '');
 }
 
 
@@ -786,7 +786,7 @@ function deselectAll() {
 
   selectedNodes.length = 0;
   selectedConnections.length = 0;
-  d3.select('a.button').style('opacity', '20%');
+  d3.select('a.button').style('opacity', '50%');
 }
 
 
