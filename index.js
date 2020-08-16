@@ -214,6 +214,10 @@ function bodyMouseup() {
       }
     }
 
+    if (selectedNodes.length > 0) {
+      d3.select('a.button').style('opacity', '100%');
+    }
+
     connecting.remove();
     state = 0;
   }
@@ -322,7 +326,6 @@ function bodyMouseMove() {
       d3.select('#node-' + i).select('p').style('background-color', '#' + c);
     }
   }
-
 }
 
 
@@ -752,6 +755,7 @@ function resizeElement(obj, x, y, x2, y2) {
 function deleteSelection() {
 
   // Delete selected nodes
+  // Darken delete button (inactive)
 
   for (let i = 0; i < selectedNodes.length; i++) {
 
@@ -764,6 +768,8 @@ function deleteSelection() {
 
       selectedConnections[i].remove();
   }
+
+  d3.select('a.button').style('opacity', '20%');
 }
 
 
@@ -771,6 +777,7 @@ function deleteSelection() {
 function deselectAll() {
 
   // Deselect selected nodes and connections
+  // Darken delete button (inactive)
 
   for (let i = 0; i < selectedNodes.length; i++) {
 
@@ -779,6 +786,7 @@ function deselectAll() {
 
   selectedNodes.length = 0;
   selectedConnections.length = 0;
+  d3.select('a.button').style('opacity', '20%');
 }
 
 
