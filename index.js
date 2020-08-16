@@ -11,6 +11,7 @@ var state = 0;
 // 2 = Dragging node
 // 3 = Drawing connection
 // 4 = Deleting connections
+// 5 = Selecting nodes
 
 var onEmpty = 1;
 // 0 = Mouse is hovering on empty canvas
@@ -88,17 +89,31 @@ function bodyMouseDown() {
 
           clicked.remove();
         }
+      } else if (state == 5) {
+
+        // Cancel multi-selection
+
+
       }
 
       state = 0;
 
       if (getM() == 2) {
 
-        // Create p5 sketch for cutting line
+        // Create connection box
         // Set state to 4 (cutting connections)
 
         createConnection('cuttingTool', mX, mY, mX, mY);
         state = 4;
+
+      } else if (getM() == 3) {
+
+        // Create connection box
+        // Set state to 5 (selecting nodes)
+
+        createConnection('multiSelect', mX, mY, mX, mY);
+        connecting.style('background-color', 'rgba(255, 255, 255, 0.03)');
+        state = 5;
       }
     }
   }
@@ -158,6 +173,32 @@ function bodyMouseup() {
     connecting.remove();
     state = 0;
   }
+
+
+  if (state == 5) {
+
+    // Delete selected nodes
+    // Delete attached connections
+    // Close selection tool
+
+    for (let i = 0; i < nodes.length; i++) {
+
+      if (nodes[i][3]) {
+
+        a = nodes[i][2];
+
+        for (let i = 0; i < a.length; i++) {
+
+          d3.select('#' + a[i]).remove();
+        }
+
+        d3.select('#node-' + i).remove();
+      }
+    }
+
+    connecting.remove();
+    state = 0;
+  }
 }
 
 
@@ -178,6 +219,11 @@ function bodyMouseMove() {
 
   mX = event.clientX;
   mY = event.clientY;
+
+
+  // Prevent text selection when not editing nodes
+
+  if (state != 1) { event.preventDefault(); }
 
 
   if (state == 2) {
@@ -220,10 +266,8 @@ function bodyMouseMove() {
   if (state == 4) {
 
     // Draw cutting line
-    // Check for connection line cuts
-    // Highlight connection selected for cutting
-
-    let dir = (((clickedX < mX) && (clickedY < mY)) || ((clickedX > mX) && (clickedY > mY)));
+    // Check for connections line cuts
+    // Highlight connections selected for cutting
 
     resizeElement(connecting, clickedX, clickedY, mX, mY);
     drawLine(sketchId, clickedX, clickedY, mX, mY, 1, 0);
@@ -234,6 +278,37 @@ function bodyMouseMove() {
 
       a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
       drawLine(a[4], a[0], a[1], a[2], a[3], 0, a[5]);
+    }
+  }
+
+
+  if (state == 5) {
+
+    // Draw selection box
+    // Check for overlap with nodes
+    // Highlight selected nodes
+
+    resizeElement(connecting, clickedX, clickedY, mX, mY);
+
+    for (let i = 0; i < nodes.length; i++) {
+
+      let a = nodes[i];
+      let s = 0;
+      let c = '';
+
+      if ((a[0] > (Math.min(clickedX, mX))) && (a[0] < (Math.max(clickedX, mX)))) {
+
+        if ((a[1] > (Math.min(clickedY, mY))) && (a[1] < (Math.max(clickedY, mY)))) {
+
+          s = 1;
+          c += '3F4047';
+
+        } else { c = '2F3138'; }
+
+      } else { c = '2F3138'; }
+
+      a[3] = s;
+      d3.select('#node-' + i).select('p').style('background-color', '#' + c);
     }
   }
 
@@ -478,11 +553,9 @@ function getKey(event) {
 
   // Return key pressed
 
-  if (event.isComposing || event.keyCode === 229) {
-    return;
-  }
-
+  if (event.isComposing || event.keyCode === 229) { return; }
   if (event.keyCode === 17) { activeKey = 17; }
+  if (event.keyCode === 18) { activeKey = 18; }
 }
 
 
@@ -503,6 +576,8 @@ function getM() {
     m = 0;
     if (activeKey == 17) {
       m = 2;
+    } else if (activeKey == 18) {
+      m = 3;
     }
   } else if (event.button == 2) {
     m = 2;
@@ -523,7 +598,7 @@ function createNode(id, x, y) {
   let id2 = nodeCount;
   if (id != -1) { id2 = id; } else { nodeCount++; }
   let id3 = 'node-' + id2;
-  nodes.push([x, y, []]);
+  nodes.push([x, y, [], 0]);
 
 
   // Create new node with given parameters
@@ -634,7 +709,7 @@ function drawLine(sketchId, x, y, x2, y2, lineType, selected) {
 
   sketchId.resizeCanvas(w, h);
   sketchId.clear();
-  sketchId.stroke('#2F323A');
+  sketchId.stroke('#2F3138');
   if (selected) { sketchId.stroke(255); }
 
   if (!lineType) { sketchId.bezier(w * (!dir), 0, w / 2, 0, w / 2, h, w * dir, h); }
