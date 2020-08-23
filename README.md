@@ -1,2 +1,2 @@
-# mindmapper
+# Mindmapper
 Simple mindmapping site
