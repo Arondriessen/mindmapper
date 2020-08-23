@@ -24,8 +24,8 @@ var clickedY = 0; // Y position of last click
 var mouseMoved = 0; // State of mouse movement between click and release
 var activeKey = 0;
 
-var nodes = [];
-var connections = [];
+var nodes = []; // [x, y, w, h, attached connections, text, active/deleted]
+var connections = []; // [x, y, x2, y2, child p5 sketch, cut, active/deleted]
 
 var nodeCount = 0;
 var connectionCount = 0;
@@ -41,6 +41,77 @@ var xOffset = 0;
 var yOffset = 0;
 
 
+
+// Load Map from Cookies
+
+setTimeout(function() {
+
+  let canRead = 0;
+  canRead = Cookies.get('canRead');
+
+  if (canRead) {
+
+    let nodesCopy = JSON.parse(Cookies.get('nodes'));
+    let connectionsCopy = JSON.parse(Cookies.get('connections'));
+
+    let nodeCountCopy = Cookies.get('nodeCount');
+    let connectionCountCopy = Cookies.get('connectionCount');
+
+    for (let i = 0; i < nodeCountCopy; i++) {
+
+      let n = nodesCopy[i];
+
+      if (n[6]) {
+
+        let x = (n[0] - Math.floor(n[2] / 2)) + 18;
+        let y = (n[1] - Math.floor(n[3] / 2)) + 34;
+
+        createNode(i, x, y, n[5]);
+      }
+    }
+
+    for (let i = 0; i < connectionCountCopy; i++) {
+
+      let c = connectionsCopy[i];
+
+      if (c[4]) {
+
+        createConnection(i, c[0], c[1], c[2], c[3]);
+        connections[i] = [c[0], c[1], c[2], c[3], sketchId, 0, 1];
+
+      } else {
+
+        connections[i] = [0, 0, 0, 0, 0, 0, 0];
+      }
+    }
+
+    nodes = nodesCopy;
+    nodeCount = nodeCountCopy;
+    connectionCount = connectionCountCopy;
+  }
+}, 100);
+
+
+
+// Save map to Cookies
+
+setInterval(function() {
+
+  let connectionsCopy = [];
+
+  for (let i = 0; i < connectionCount; i++) {
+
+    connectionsCopy[i] = [connections[i][0], connections[i][1], connections[i][2], connections[i][3], connections[i][6]];
+  }
+
+  Cookies.set('canRead', 1);
+  Cookies.set('nodes', JSON.stringify(nodes));
+  Cookies.set('connections', JSON.stringify(connectionsCopy));
+  Cookies.set('nodeCount', nodeCount);
+  Cookies.set('connectionCount', connectionCount);
+
+  console.log('Saved');
+}, 5000);
 
 
 
@@ -97,8 +168,10 @@ function bodyMouseDown() {
 
           // Delete latest node
 
+          nodes[getIndexFromID(clicked.attr('id'))][6] = 0;
           clicked.remove();
         }
+
       } else {
 
         // Prevent contextmenu from showing
@@ -139,87 +212,110 @@ function bodyMouseDown() {
 
 function bodyMouseup() {
 
-  if (state == 2) {
+  switch(state) {
 
-    // Release dragged nodes
+    case 2:
 
-    let x = getElementCenterX(clicked);
-    let y = getElementCenterY(clicked);
+      // Release dragged nodes
 
-    let nodeConnections = nodes[getIndexFromID(clicked.attr('id'))][2];
-    for (i = 0; i < nodeConnections.length; i++) {
-      let c = connections[getIndexFromID(nodeConnections[i])];
-      let num = ((c[2] == clickedX) && (c[3] == clickedY)) * 2;
-      c[0 + num] = x;
-      c[1 + num] = y;
-    }
+      let x = getElementCenterX(clicked);
+      let y = getElementCenterY(clicked);
 
-    nodes[getIndexFromID(clicked.attr('id'))][0] = x;
-    nodes[getIndexFromID(clicked.attr('id'))][1] = y;
-    selectedConnections.length = 0;
-    state = 1;
-  }
+      let nodeConnections = nodes[getIndexFromID(clicked.attr('id'))][4];
+
+      for (i = 0; i < nodeConnections.length; i++) {
+
+        let c = connections[getIndexFromID(nodeConnections[i])];
+        if (c[6]) {
+
+          let num = ((c[2] == clickedX) && (c[3] == clickedY)) * 2;
+          c[0 + num] = x;
+          c[1 + num] = y;
+        }
+      }
+
+      nodes[getIndexFromID(clicked.attr('id'))][0] = x;
+      nodes[getIndexFromID(clicked.attr('id'))][1] = y;
+      selectedConnections.length = 0;
+      state = 1;
+
+      break;
 
 
-  if (state == 3) {
 
-    // Delete in-progress connections
+    case 3:
 
-    if (onEmpty) {
+      // Delete in-progress connections
+
+      if (onEmpty) {
+
+        connecting.remove();
+        state = 0;
+      }
+
+      break;
+
+
+
+    case 4:
+
+      // Delete "cut" connections
+      // Delete cutting tool sketch
+      // Reset state to default
+
+      for (let i = 0; i < connections.length; i++) {
+
+        let a = connections[i];
+
+        a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
+        if (a[5]) {
+          a[6] = 0;
+          d3.select('#connection-' + i).remove();
+        }
+      }
+      connecting.remove();
+      state = 0;
+
+      break;
+
+
+
+    case 5:
+
+      // Add nodes in selection box to selectedNodes
+      // Add attached connections to selectedConnections
+      // Close selection tool
+
+      for (let i = 0; i < nodes.length; i++) {
+
+        let a = nodes[i];
+
+        if (a[6]) {
+
+          if (isInBox(a[0], a[1], clickedX, clickedY, mX, mY)) {
+
+            aa = a[4];
+
+            for (let y = 0; y < aa.length; y++) {
+
+              if (connections[getIndexFromID(aa[y])]) {
+                selectedConnections.push(d3.select('#' + aa[y]));
+              }
+            }
+
+            selectedNodes.push(d3.select('#node-' + i));
+          }
+        }
+      }
+
+      if (selectedNodes.length > 0) {
+        d3.select('a.button').style('opacity', '100%');
+      }
 
       connecting.remove();
       state = 0;
-    }
-  }
 
-
-  if (state == 4) {
-
-    // Delete "cut" connections
-    // Delete cutting tool sketch
-    // Reset state to default
-
-    for (let i = 0; i < connections.length; i++) {
-
-      let a = connections[i];
-
-      a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
-      if (a[5]) { d3.select('#connection-' + i).remove(); }
-    }
-    connecting.remove();
-    state = 0;
-  }
-
-
-  if (state == 5) {
-
-    // Add nodes in selection box to selectedNodes
-    // Add attached connections to selectedConnections
-    // Close selection tool
-
-    for (let i = 0; i < nodes.length; i++) {
-
-      let a = nodes[i];
-
-      if (isInBox(a[0], a[1], clickedX, clickedY, mX, mY)) {
-
-        aa = a[2];
-
-        for (let y = 0; y < aa.length; y++) {
-
-          selectedConnections.push(d3.select('#' + aa[y]));
-        }
-
-        selectedNodes.push(d3.select('#node-' + i));
-      }
-    }
-
-    if (selectedNodes.length > 0) {
-      d3.select('a.button').style('opacity', '100%');
-    }
-
-    connecting.remove();
-    state = 0;
+      break;
   }
 }
 
@@ -298,8 +394,11 @@ function bodyMouseMove() {
 
       let a = connections[i];
 
-      a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
-      drawLine(a[4], a[0], a[1], a[2], a[3], 0, a[5]);
+      if (a[6]) {
+
+        a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
+        drawLine(a[4], a[0], a[1], a[2], a[3], 0, a[5]);
+      }
     }
   }
 
@@ -317,13 +416,16 @@ function bodyMouseMove() {
       let a = nodes[i];
       let c = '';
 
-      if (isInBox(a[0], a[1], clickedX, clickedY, mX, mY)) {
+      if (a[6]) {
 
-        c = '3F4047';
+        if (isInBox(a[0], a[1], clickedX, clickedY, mX, mY)) {
 
-      } else { c = '2F3138'; }
+          c = '404249';
 
-      d3.select('#node-' + i).select('p').style('background-color', '#' + c);
+        } else { c = '2F3138'; }
+
+        d3.select('#node-' + i).select('p').style('background-color', '#' + c);
+      }
     }
   }
 }
@@ -345,7 +447,7 @@ function bodyDBClick() {
 
         // Create new node at mouse position
 
-        createNode(-1, clickedX, clickedY);
+        createNode(-1, clickedX, clickedY, -1);
       }
     }
   }
@@ -429,11 +531,16 @@ function nodeHandleMouseDown() {
       xOffset = (parseInt(clicked.style('margin-left'), 10) - mX);
       yOffset = (parseInt(clicked.style('margin-top'), 10) - mY);
 
-      let nodeConnections = nodes[getIndexFromID(clicked.attr('id'))][2];
+      let nodeConnections = nodes[getIndexFromID(clicked.attr('id'))][4];
+
       for (i = 0; i < nodeConnections.length; i++) {
+
         let c = connections[getIndexFromID(nodeConnections[i])];
-        let num = ((c[0] == clickedX) && (c[1] == clickedY)) * 2;
-        selectedConnections.push([d3.select('#' + nodeConnections[i]), c[0 + num], c[1 + num], c[4]]);
+
+        if (c[6]) {
+          let num = ((c[0] == clickedX) && (c[1] == clickedY)) * 2;
+          selectedConnections.push([d3.select('#' + nodeConnections[i]), c[0 + num], c[1 + num], c[4]]);
+        }
       }
     }
   }
@@ -515,9 +622,9 @@ function nodeChildMouseUp() {
 
       resizeElement(connecting, clickedX, clickedY, x2, y2);
       drawLine(sketchId, clickedX, clickedY, x2, y2, 0, 0);
-      connections.push([clickedX, clickedY, x2, y2, sketchId]);
-      nodes[getIndexFromID(clickedId)][2].push(thisId);
-      nodes[getIndexFromID(releasedOnId)][2].push(thisId);
+      connections.push([clickedX, clickedY, x2, y2, sketchId, 0, 1]);
+      nodes[getIndexFromID(clickedId)][4].push(thisId);
+      nodes[getIndexFromID(releasedOnId)][4].push(thisId);
       connectionCount++;
 
     } else {
@@ -536,34 +643,47 @@ function nodeChildMouseUp() {
 
 function nodeInput() {
 
+  // Save edited text into nodes array
+
+  let id = clicked.attr('id');
+  let node = nodes[getIndexFromID(id)];
+
+  node[5] = d3.select('#' + id).text();
+
+
   // Update attached connections when typing
 
-  let node = nodes[getIndexFromID(clicked.attr('id'))];
   let x = getElementCenterX(clicked); // New position
   let y = getElementCenterY(clicked);
   let x3 = node[0];  // Old position
   let y3 = node[1];
-  let nodeConnections = node[2];
+  let nodeConnections = node[4];
 
   for (i = 0; i < nodeConnections.length; i++) {
 
     let c = connections[getIndexFromID(nodeConnections[i])];
-    let num = ((c[2] == x3) && (c[3] == y3)) * 2;
 
-    let x2 = c[2 - num]; // Moved connection ednpoint position
-    let y2 = c[3 - num];
-    let dir = (((x < x2) && (y < y2)) || ((x > x2) && (y > y2)));
-    let obj = d3.select('#' + nodeConnections[i]);
+    if (c[6]) {
 
-    resizeElement(obj, x, y, x2, y2);
-    drawLine(c[4], x, y, x2, y2, 0, 0);
+      let num = ((c[2] == x3) && (c[3] == y3)) * 2;
 
-    c[0 + num] = x;
-    c[1 + num] = y;
+      let x2 = c[2 - num]; // Moved connection endpoint position
+      let y2 = c[3 - num];
+      let dir = (((x < x2) && (y < y2)) || ((x > x2) && (y > y2)));
+      let obj = d3.select('#' + nodeConnections[i]);
+
+      resizeElement(obj, x, y, x2, y2);
+      drawLine(c[4], x, y, x2, y2, 0, 0);
+
+      c[0 + num] = x;
+      c[1 + num] = y;
+    }
   }
 
   node[0] = x;
   node[1] = y;
+  node[2] = parseInt(clicked.style('width'));
+  node[3] = parseInt(clicked.style('height'));
 }
 
 
@@ -609,7 +729,7 @@ function getM() {
 
 
 
-function createNode(id, x, y) {
+function createNode(id, x, y, txt) {
 
   // Check if old or new id should be used and define it
   // If new, increment total number of nodes by one
@@ -620,7 +740,9 @@ function createNode(id, x, y) {
   let id2 = nodeCount;
   if (id != -1) { id2 = id; } else { nodeCount++; }
   let id3 = 'node-' + id2;
-  nodes.push([x, y, []]);
+  let txt2 = "";
+  if (txt != -1) { txt2 = txt; }
+  nodes[id2] = [x, y, 36, 68, [], txt2, 1];
 
 
   // Create new node with given parameters
@@ -659,10 +781,11 @@ function createNode(id, x, y) {
         .on('mousedown', nodeChildMouseDown)
         .on('mouseup', nodeChildMouseUp)
         .append('p')
+        .text(txt2)
         .classed('text_bubble', true)
         .attr('contenteditable', 'true')
         .on('input', nodeInput)
-        .node().focus();
+        .call(function(parent) { if (txt == -1) { parent.node().focus(); }});
     });
 }
 
@@ -731,7 +854,7 @@ function drawLine(sketchId, x, y, x2, y2, lineType, selected) {
 
   sketchId.resizeCanvas(w, h);
   sketchId.clear();
-  sketchId.stroke('#2F3138');
+  sketchId.stroke('#2A2C34');
   if (selected) { sketchId.stroke(255); }
 
   if (!lineType) { sketchId.bezier(w * (!dir), 0, w / 2, 0, w / 2, h, w * dir, h); }
@@ -759,6 +882,7 @@ function deleteSelection() {
 
   for (let i = 0; i < selectedNodes.length; i++) {
 
+    nodes[getIndexFromID(selectedNodes[i].attr('id'))][6] = 0;
     selectedNodes[i].remove();
   }
 
@@ -766,7 +890,16 @@ function deleteSelection() {
 
   for (let i = 0; i < selectedConnections.length; i++) {
 
-      selectedConnections[i].remove();
+    let sC = selectedConnections[i];
+
+    // Check if connection hasn't already been deleted
+    // (The same connection can be selected by two nodes)
+
+    if (sC.node() != null) {
+
+      connections[getIndexFromID(sC.attr('id'))][6] = 0;
+      sC.remove();
+    }
   }
 
   d3.select('a.button').style('opacity', '');
