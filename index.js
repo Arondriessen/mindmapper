@@ -157,28 +157,10 @@ function bodyMouseDown() {
     clickedY = mY;
 
 
+    removEmptyNode();
+
+
     if (onEmpty) {
-
-
-      // Delete new node if empty
-
-      if (state == 1) {
-
-        if (clicked.select('p').text() == "") {
-
-          // Delete latest node
-
-          nodes[getIndexFromID(clicked.attr('id'))][6] = 0;
-          clicked.remove();
-        }
-
-      } else {
-
-        // Prevent contextmenu from showing
-
-        event.preventDefault();
-      }
-
 
       // Cancel all active selections
 
@@ -249,8 +231,29 @@ function bodyMouseup() {
 
       if (onEmpty) {
 
-        connecting.remove();
-        state = 0;
+        // If drawing a connection create a new node at cursor position
+        // Snap connection to newly created node
+        // Save connection info to the connections array
+        // Add connection id to parents' info arrays
+        // Increment total number of connections by one
+
+        let x = getElementCenterX(clicked);
+        let y = getElementCenterY(clicked);
+        let clickedId = clicked.attr('id');
+
+        createNode(-1, mX, mY, -1);
+
+        let x2 = getElementCenterX(clicked);
+        let y2 = getElementCenterY(clicked);
+        let thisId = connecting.attr('id');
+        let releasedOnId = clicked.attr('id');
+
+        resizeElement(connecting, x, y, x2, y2);
+        drawLine(sketchId, x, y, x2, y2, 0, 0);
+        connections.push([x, y, x2, y2, sketchId, 0, 1]);
+        nodes[getIndexFromID(clickedId)][4].push(thisId);
+        nodes[getIndexFromID(releasedOnId)][4].push(thisId);
+        connectionCount++;
       }
 
       break;
@@ -298,7 +301,7 @@ function bodyMouseup() {
 
             for (let y = 0; y < aa.length; y++) {
 
-              if (connections[getIndexFromID(aa[y])]) {
+              if (connections[getIndexFromID(aa[y])]) { // WTF does this do???
                 selectedConnections.push(d3.select('#' + aa[y]));
               }
             }
@@ -422,7 +425,7 @@ function bodyMouseMove() {
 
           c = '404249';
 
-        } else { c = '2F3138'; }
+        } else { c = '2A2C34'; }
 
         d3.select('#node-' + i).select('p').style('background-color', '#' + c);
       }
@@ -521,6 +524,9 @@ function nodeHandleMouseDown() {
 
   if (state < 2) {
 
+    removEmptyNode();
+
+
     if (getM() == 0) {
 
       state = 2;
@@ -569,9 +575,26 @@ function nodeChildMouseDown() {
 
   if (state < 2) {
 
+    // Define this element as 'next clicked'
+    // Previous clicked variable still needed to check for empty nodes
+
+    let clickedNext = d3.select(this.parentNode);
+
+
+    // Update last clicked position
+
+    clickedX = getElementCenterX(clickedNext);
+    clickedY = getElementCenterY(clickedNext);
+
+
+    // Delete new node if empty
+
+    removEmptyNode();
+
+
     // Save object into "clicked"
 
-    clicked = d3.select(this.parentNode);
+    clicked = clickedNext;
 
     if (getM() == 0) {
 
@@ -579,19 +602,17 @@ function nodeChildMouseDown() {
 
     } else if (getM() == 2) {
 
-      // Update last clicked position
-
-      clickedX = getElementCenterX(clicked);
-      clickedY = getElementCenterY(clicked);
-
-
       // Prevent default context menu from showing
-      // Create new connection
+      // If node is not empty create new connection
       // Set state to 3 (drawing connection)
 
       event.preventDefault();
-      createConnection(-1, clickedX, clickedY, mX, mY);
-      state = 3;
+
+      if (clicked.text() != "") {
+
+        createConnection(-1, clickedX, clickedY, mX, mY);
+        state = 3;
+      }
     }
   }
 }
@@ -875,6 +896,38 @@ function resizeElement(obj, x, y, x2, y2) {
 
 
 
+function removEmptyNode() {
+
+  // Delete new node if empty
+
+  if (state == 1) {
+
+    if (clicked.select('p').text() == "") {
+
+      if ((Math.abs(getElementCenterX(clicked) - clickedX) > 18) || (Math.abs(getElementCenterY(clicked) - clickedY) > 34)) {
+
+        // Delete latest node
+        // Set node state to 0 (deleted)
+        // Delete attached connections
+        // Set connections states to 0 (deleted)
+
+        let n = nodes[getIndexFromID(clicked.attr('id'))];
+        selectedNodes.push(clicked);
+
+        for (let i = 0; i < n[4].length; i++) {
+
+          selectedConnections.push(d3.select('#' + n[4][i]));
+        }
+
+        deleteSelection();
+      }
+    }
+
+  }
+}
+
+
+
 function deleteSelection() {
 
   // Delete selected nodes
@@ -886,7 +939,7 @@ function deleteSelection() {
     selectedNodes[i].remove();
   }
 
-  // Delete selected connetions
+  // Delete selected connections
 
   for (let i = 0; i < selectedConnections.length; i++) {
 
@@ -903,6 +956,8 @@ function deleteSelection() {
   }
 
   d3.select('a.button').style('opacity', '');
+  selectedNodes.length = 0;
+  selectedConnections.length = 0;
 }
 
 
