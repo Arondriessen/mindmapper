@@ -104,11 +104,11 @@ setInterval(function() {
     connectionsCopy[i] = [connections[i][0], connections[i][1], connections[i][2], connections[i][3], connections[i][6]];
   }
 
-  Cookies.set('canRead', 1);
-  Cookies.set('nodes', JSON.stringify(nodes));
-  Cookies.set('connections', JSON.stringify(connectionsCopy));
-  Cookies.set('nodeCount', nodeCount);
-  Cookies.set('connectionCount', connectionCount);
+  Cookies.set('canRead', 1, { expires: 365 });
+  Cookies.set('nodes', JSON.stringify(nodes), { expires: 365 });
+  Cookies.set('connections', JSON.stringify(connectionsCopy), { expires: 365 });
+  Cookies.set('nodeCount', nodeCount, { expires: 365 });
+  Cookies.set('connectionCount', connectionCount, { expires: 365 });
 
   console.log('Saved');
 }, 5000);
