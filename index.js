@@ -24,8 +24,8 @@ var clickedY = 0; // Y position of last click
 var mouseMoved = 0; // State of mouse movement between click and release
 var activeKey = 0;
 
-var nodes = []; // [x, y, w, h, attached connections, text, active/deleted]
-var connections = []; // [x, y, x2, y2, child p5 sketch, cut, active/deleted]
+var nodes = []; // [x, y, w, h, attached connections, text, deleted/active (0, 1), fixed/free node (0, 1), parent node(fixed only)]
+var connections = []; // [x, y, x2, y2, child p5 sketch, cut, deleted/active (0, 1), line type]
 
 var nodeCount = 0;
 var connectionCount = 0;
@@ -39,6 +39,9 @@ var selectedConnections = [];
 
 var xOffset = 0;
 var yOffset = 0;
+
+var nHW = 20;
+var nHH = 30;
 
 
 
@@ -57,29 +60,46 @@ setTimeout(function() {
     let nodeCountCopy = Cookies.get('nodeCount');
     let connectionCountCopy = Cookies.get('connectionCount');
 
+
+    // Load nodes
+
     for (let i = 0; i < nodeCountCopy; i++) {
 
       let n = nodesCopy[i];
 
-      if (n[6]) {
+      if (n[6]) {  // If element is active
 
-        let x = (n[0] - Math.floor(n[2] / 2)) + 18;
-        let y = (n[1] - Math.floor(n[3] / 2)) + 34;
+        if (n[7]) {  // If free node
 
-        createNode(i, x, y, n[5]);
+          // Recreate free node
+
+          let x = (n[0] - Math.floor(n[2] / 2)) + nHW;
+          let y = (n[1] - Math.floor(n[3] / 2)) + nHH;
+
+          createNode(i, x, y, n[5]);
+
+        } else {  // If fixed node
+
+          // Recreate fixed node
+
+          createFixedNode(i, n[8], n[5], 0);
+        }
       }
     }
+
+
+    // Load connections
 
     for (let i = 0; i < connectionCountCopy; i++) {
 
       let c = connectionsCopy[i];
 
-      if (c[4]) {
+      if (c[4]) {  // If connection is active
 
-        createConnection(i, c[0], c[1], c[2], c[3]);
-        connections[i] = [c[0], c[1], c[2], c[3], sketchId, 0, 1];
+        createConnection(i, c[0], c[1], c[2], c[3], c[5]);
+        connections[i] = [c[0], c[1], c[2], c[3], sketchId, 0, 1, c[5]];
 
-      } else {
+      } else {  // If connection has been deleted
 
         connections[i] = [0, 0, 0, 0, 0, 0, 0];
       }
@@ -101,7 +121,7 @@ setInterval(function() {
 
   for (let i = 0; i < connectionCount; i++) {
 
-    connectionsCopy[i] = [connections[i][0], connections[i][1], connections[i][2], connections[i][3], connections[i][6]];
+    connectionsCopy[i] = [connections[i][0], connections[i][1], connections[i][2], connections[i][3], connections[i][6], connections[i][7]];
   }
 
   Cookies.set('canRead', 1, { expires: 365 });
@@ -174,7 +194,7 @@ function bodyMouseDown() {
         // Create connection box
         // Set state to 4 (cutting connections)
 
-        createConnection('cuttingTool', mX, mY, mX, mY);
+        createConnection('cuttingTool', mX, mY, mX, mY, 1);
         state = 4;
 
       } else if (getM() == 3) {
@@ -182,7 +202,7 @@ function bodyMouseDown() {
         // Create connection box
         // Set state to 5 (selecting nodes)
 
-        createConnection('multiSelect', mX, mY, mX, mY);
+        createConnection('multiSelect', mX, mY, mX, mY, 0);
         connecting.style('background-color', 'rgba(255, 255, 255, 0.03)');
         state = 5;
       }
@@ -210,9 +230,15 @@ function bodyMouseup() {
         let c = connections[getIndexFromID(nodeConnections[i])];
         if (c[6]) {
 
-          let num = ((c[2] == clickedX) && (c[3] == clickedY)) * 2;
-          c[0 + num] = x;
-          c[1 + num] = y;
+          if (c[7] == 0) {
+
+            let num = ((Math.abs(c[2] - clickedX) < 2) && (Math.abs(c[3] - clickedY) < 2)) * 2;
+
+            if ((c[2] != x) && (c[3] != y)) {
+              c[num] = x;
+              c[num + 1] = y;
+            }
+          }
         }
       }
 
@@ -250,7 +276,7 @@ function bodyMouseup() {
 
         resizeElement(connecting, x, y, x2, y2);
         drawLine(sketchId, x, y, x2, y2, 0, 0);
-        connections.push([x, y, x2, y2, sketchId, 0, 1]);
+        connections.push([x, y, x2, y2, sketchId, 0, 1, 0]);
         nodes[getIndexFromID(clickedId)][4].push(thisId);
         nodes[getIndexFromID(releasedOnId)][4].push(thisId);
         connectionCount++;
@@ -352,24 +378,38 @@ function bodyMouseMove() {
     // Update dragged node position
     // Update attached connections' size/position
 
+    clicked.style('margin-left', (mX + xOffset) + 'px')
+      .style('margin-top', (mY + yOffset) + 'px')
+      .style('margin-bottom', (mY + yOffset) + 'px');
+
     let x = getElementCenterX(clicked);
     let y = getElementCenterY(clicked);
 
-    clicked.style('margin-left', (mX + xOffset) + 'px')
-      .style('margin-top', (mY + yOffset) + 'px');
+    let hasFixedTree = 0;
 
     if (selectedConnections.length > 0) {
       for (let i = 0; i < selectedConnections.length; i++) {
 
         let obj = selectedConnections[i];
-        let x2 = obj[1];
-        let y2 = obj[2];
-        let dir = (((x < x2) && (y < y2)) || ((x > x2) && (y > y2)));
 
-        resizeElement(obj[0], x, y, x2, y2);
-        drawLine(obj[3], x, y, x2, y2, 0, 0);
+        if (obj[4] == 0) {
+
+          console.log('efewfe');
+
+          let x2 = obj[1];
+          let y2 = obj[2];
+
+          resizeElement(obj[0], x, y, x2, y2);
+          drawLine(obj[3], x, y, x2, y2, 0, 0);
+
+        } else {
+
+          hasFixedTree = 1;
+        }
       }
     }
+
+    if (hasFixedTree) { updateFixedTree(clicked); }
   }
 
 
@@ -400,7 +440,7 @@ function bodyMouseMove() {
       if (a[6]) {
 
         a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
-        drawLine(a[4], a[0], a[1], a[2], a[3], 0, a[5]);
+        drawLine(a[4], a[0], a[1], a[2], a[3], a[7], a[5]);
       }
     }
   }
@@ -469,21 +509,27 @@ function bodyRClick() {
 
 function nodeHover() {
 
+  // If it's a free node
   // Set onEmpty to false to disable stacking new nodes
   // Display node handle
 
   onEmpty = 0;
+  let obj = d3.select(this);
 
-  d3.select(this)
-     .select('div.text_bubble_handle')
-     .style('opacity', '100%');
+  if ((d3.select(this.parentNode)).attr('class') == "node_wrapper_column") {
+
+    obj.select('div.text_bubble_handle')
+       .style('opacity', '100%');
+  }
+
+ obj.select('div.new_node_button')
+    .style('opacity', '100%');
 
   if (state == 3) {
 
     // Scale up selected node
 
-    d3.select(this)
-      .style('transform', 'scale(1.02)');
+    obj.style('transform', 'scale(1.02)');
   }
 }
 
@@ -496,6 +542,10 @@ function nodeHoverOut() {
   d3.select(this)
      .select('div.text_bubble_handle')
      .style('opacity', '0%');
+
+ d3.select(this)
+    .select('div.new_node_button')
+    .style('opacity', '0%');
 
   if (state == 3) {
 
@@ -545,7 +595,7 @@ function nodeHandleMouseDown() {
 
         if (c[6]) {
           let num = ((c[0] == clickedX) && (c[1] == clickedY)) * 2;
-          selectedConnections.push([d3.select('#' + nodeConnections[i]), c[0 + num], c[1 + num], c[4]]);
+          selectedConnections.push([d3.select('#' + nodeConnections[i]), c[0 + num], c[1 + num], c[4], c[7]]);
         }
       }
     }
@@ -610,7 +660,7 @@ function nodeChildMouseDown() {
 
       if (clicked.text() != "") {
 
-        createConnection(-1, clickedX, clickedY, mX, mY);
+        createConnection(-1, clickedX, clickedY, mX, mY, 0);
         state = 3;
       }
     }
@@ -637,13 +687,15 @@ function nodeChildMouseUp() {
       let x2 = getElementCenterX(releasedOn);
       let y2 = getElementCenterY(releasedOn);
 
+      console.log([x2, y2]);
+
       let thisId = connecting.attr('id');
       let clickedId = clicked.attr('id');
       let releasedOnId = releasedOn.attr('id');
 
       resizeElement(connecting, clickedX, clickedY, x2, y2);
       drawLine(sketchId, clickedX, clickedY, x2, y2, 0, 0);
-      connections.push([clickedX, clickedY, x2, y2, sketchId, 0, 1]);
+      connections.push([clickedX, clickedY, x2, y2, sketchId, 0, 1, 0]);
       nodes[getIndexFromID(clickedId)][4].push(thisId);
       nodes[getIndexFromID(releasedOnId)][4].push(thisId);
       connectionCount++;
@@ -694,7 +746,7 @@ function nodeInput() {
       let obj = d3.select('#' + nodeConnections[i]);
 
       resizeElement(obj, x, y, x2, y2);
-      drawLine(c[4], x, y, x2, y2, 0, 0);
+      drawLine(c[4], x, y, x2, y2, c[7], 0);
 
       c[0 + num] = x;
       c[1 + num] = y;
@@ -705,6 +757,8 @@ function nodeInput() {
   node[1] = y;
   node[2] = parseInt(clicked.style('width'));
   node[3] = parseInt(clicked.style('height'));
+
+  if (node[7] == 0) { updateFixedTree(clicked); }
 }
 
 
@@ -758,12 +812,15 @@ function createNode(id, x, y, txt) {
   // Push new node object to the "nodes array"
 
   state = 1;
+
   let id2 = nodeCount;
   if (id != -1) { id2 = id; } else { nodeCount++; }
   let id3 = 'node-' + id2;
+
   let txt2 = "";
   if (txt != -1) { txt2 = txt; }
-  nodes[id2] = [x, y, 36, 68, [], txt2, 1];
+
+  nodes[id2] = [x, y, 36, 68, [], txt2, 1, 1, -1];
 
 
   // Create new node with given parameters
@@ -771,48 +828,181 @@ function createNode(id, x, y, txt) {
 
   d3.select('body')
     .append('div')
-    .classed('text_bubble_wrap', true)
-    .attr('id', id3)
-    .style('margin-left', (x - 18) + 'px')
-    .style('margin-top', (y - 34) + 'px')
-    .style('z-index', '10')
-    .on('mouseenter', nodeHover)
-    .on('mouseleave', nodeHoverOut)
+    .classed('node_wrapper free_node', true)
     .call(function(parent) {
 
-      clicked = parent;
-
       parent.append('div')
-        .classed('text_bubble_handle', true)
-        .on('mousedown', nodeHandleMouseDown)
-        .on('mouseup', nodeHandleMouseUp)
+        .classed('node_wrapper_column', true)
         .append('div')
-        .classed('handle_line_and_circle', true)
+        .classed('text_bubble_wrap', true)
+        .attr('id', id3)
+        .style('margin-left', (x - nHW) + 'px')
+        .style('margin-top', (y - nHH) + 'px')
+        .style('margin-bottom', (y - nHH) + 'px')
+        .style('z-index', '10')
+        .on('mouseenter', nodeHover)
+        .on('mouseleave', nodeHoverOut)
         .call(function(parent) {
 
-          parent.append('div')
-            .classed('handle_circle', true);
+          clicked = parent;
 
           parent.append('div')
-            .classed('handle_line', true);
-        });
+            .classed('text_bubble_handle', true)
+            .on('mousedown', nodeHandleMouseDown)
+            .on('mouseup', nodeHandleMouseUp)
+            .append('div')
+            .classed('handle_line_and_circle', true)
+            .call(function(parent) {
 
-      parent.append('div')
-        .style('display', 'inline-block')
-        .on('mousedown', nodeChildMouseDown)
-        .on('mouseup', nodeChildMouseUp)
-        .append('p')
-        .text(txt2)
-        .classed('text_bubble', true)
-        .attr('contenteditable', 'true')
-        .on('input', nodeInput)
-        .call(function(parent) { if (txt == -1) { parent.node().focus(); }});
-    });
+              parent.append('div')
+                .classed('handle_circle', true);
+
+              parent.append('div')
+                .classed('handle_line', true);
+            });
+
+          parent.append('div')
+            .style('display', 'inline-block')
+            .on('mousedown', nodeChildMouseDown)
+            .on('mouseup', nodeChildMouseUp)
+            .append('p')
+            .text(txt2)
+            .classed('text_bubble', true)
+            .attr('contenteditable', 'true')
+            .on('input', nodeInput)
+            .call(function(parent) { if (txt == -1) { parent.node().focus();}});
+
+
+          parent.append('div')
+            .classed('new_node_button', true)
+            .on('click', function() { createFixedNode(-1, id3, -1, 1); })
+            .append('div')
+            .classed('handle_line_and_circle new_node', true)
+            .call(function(parent) {
+
+              parent.append('div')
+                .classed('handle_line', true);
+
+              parent.append('div')
+                .classed('handle_circle new_node_circle', true)
+                .append('image')
+                .classed('add_icon', true)
+                .attr('src', 'images/add_icon.svg');
+            });
+          });
+
+        parent.append('div')
+          .classed('node_wrapper_column column_two', true)
+      })
 }
 
 
 
-function createConnection(id, x, y, x2, y2) {
+function createFixedNode(id, parent, txt, newNode) {
+
+  state = 1;
+
+  //let id = nodeCount;
+  //let id2 = 'node-' + id;
+
+  let id2 = nodeCount;
+  if (id != -1) { id2 = id; } else { nodeCount++; }
+  let id3 = 'node-' + id2;
+
+  let txt2 = "";
+  if (txt != -1) { txt2 = txt; }
+
+  let th = d3.select('#' + parent);
+  let obj = d3.select(th.node().parentNode.parentNode);
+
+  nodes[id2] = [0, 0, 36, 68, [], "", 1, 0, parent];
+
+  obj.select('div.node_wrapper_column.column_two')
+    .append('div')
+    .classed('node_wrapper', true)
+    .call(function(parent) {
+
+      parent.append('div')
+        .classed('node_wrapper_column', true)
+        .append('div')
+        .classed('text_bubble_wrap', true)
+        .attr('id', id3)
+        .style('z-index', '10')
+        .on('mouseenter', nodeHover)
+        .on('mouseleave', nodeHoverOut)
+        .call(function(parent) {
+
+          clicked = parent;
+
+          parent.append('div')
+            .style('display', 'inline-block')
+            .on('mousedown', nodeChildMouseDown)
+            .on('mouseup', nodeChildMouseUp)
+            .append('p')
+            .text(txt2)
+            .classed('text_bubble fixed_bubble', true)
+            .attr('contenteditable', 'true')
+            .on('input', nodeInput)
+            .call(function(parent) { if (txt == -1) { parent.node().focus();}});
+
+
+          parent.append('div')
+            .classed('new_node_button', true)
+            .on('click', function() { createFixedNode(-1, id3, -1, 1); })
+            .append('div')
+            .classed('handle_line_and_circle new_node', true)
+            .call(function(parent) {
+
+              parent.append('div')
+                .classed('handle_line', true);
+
+              parent.append('div')
+                .classed('handle_circle new_node_circle', true)
+                .append('image')
+                .classed('add_icon', true)
+                .attr('src', 'images/add_icon.svg');
+            });
+          });
+
+        parent.append('div')
+          .classed('node_wrapper_column column_two', true)
+      })
+
+
+  // If creating new node (not from save file)...
+  // Get and save new node center position
+  // Create new connection
+
+  if (newNode) {
+
+    let x = getElementCenterX(clicked);
+    let y = getElementCenterY(clicked);
+
+    nodes[id2][0] = x;
+    nodes[id2][1] = y;
+
+    if (id == -1) {
+
+      let x2 = getElementCenterX(th);
+      let y2 = getElementCenterY(th);
+
+      createConnection(-1, x, y, x2, y2, 2);
+      connections.push([x, y, x2, y2, sketchId, 0, 1, 2]);
+      nodes[getIndexFromID(parent)][4].push('connection-' + connectionCount);
+      nodes[id2][4].push('connection-' + connectionCount);
+      connectionCount++;
+
+      // Update fixed node tree positions
+
+      updateFixedTree(clicked);
+    }
+  }
+
+}
+
+
+
+function createConnection(id, x, y, x2, y2, lineType) {
 
   // Check if old or new id should be used and define it
   // Create id string
@@ -840,8 +1030,11 @@ function createConnection(id, x, y, x2, y2) {
   // Set connection position/size
   // Draw connection line
 
+  let lT = 0;
+  if (lineType == 2) { lT = 2; }
+
   resizeElement(connecting, x, y, x2, y2);
-  drawLine(sketchId, x, y, x2, y2, 0, 0);
+  drawLine(sketchId, x, y, x2, y2, lT, 0);
 }
 
 
@@ -878,8 +1071,10 @@ function drawLine(sketchId, x, y, x2, y2, lineType, selected) {
   sketchId.stroke('#2A2C34');
   if (selected) { sketchId.stroke(255); }
 
-  if (!lineType) { sketchId.bezier(w * (!dir), 0, w / 2, 0, w / 2, h, w * dir, h); }
-  else { sketchId.line(w * (!dir), 0, w * dir, h); }
+  if (lineType == 0) { sketchId.bezier(w * (!dir), 0, w / 2, 0, w / 2, h, w * dir, h); }
+  else if (lineType == 1) { sketchId.line(w * (!dir), 0, w * dir, h); }
+  else if (lineType == 2) { sketchId.line(w * (!dir), 0, w * dir, h); }
+
 }
 
 
@@ -890,8 +1085,81 @@ function resizeElement(obj, x, y, x2, y2) {
 
   obj.style('margin-left', Math.min(x, x2) + 'px')
   .style('margin-top', Math.min(y, y2) + 'px')
+  .style('margin-bottom', Math.min(y, y2) + 'px')
   .style('width', Math.abs(x - x2) + 'px')
   .style('height', Math.abs(y - y2) + 'px');
+}
+
+
+
+function updateFixedTree(obj) {
+
+  // Update all fixed children nodes and attached connections of obj
+
+  let obj2 = d3.select('#node-' + getTreeParentIndex(obj));
+
+  d3.select(obj2.node().parentNode.parentNode)
+    .selectAll('div.text_bubble_wrap')
+    .each(function() {
+
+      console.log(this);
+
+      let parent = d3.select(this);
+
+      if (parent != null) {
+
+        let a = nodes[getIndexFromID(parent.attr('id'))];
+        let nodeConnections = a[4];
+        console.log(nodeConnections);
+
+        // Save previous node position before updating
+        // Update node position and w/h
+
+        let x = getElementCenterX(parent);
+        let y = getElementCenterY(parent);
+        console.log("New Pos: " + [x, y]);
+        let pX = a[0];
+        let pY = a[1];
+        console.log("Prev Pos: " + [pX, pY]);
+
+        a[0] = x;
+        a[1] = y;
+        a[2] = parseInt(obj.style('width'));
+        a[3] = parseInt(obj.style('height'));
+
+        // Cycle through attached connections
+
+        for (let z = 0; z < nodeConnections.length; z++) {
+
+          // Select connection endpoint to be moved
+          // Update it and redraw connection
+
+          let i = getIndexFromID(nodeConnections[z]);
+
+          console.log(i);
+
+          let c = connections[i];
+
+          if (c[6]) {
+
+            let num = ((Math.abs(c[2] - pX) < 2) && (Math.abs(c[3] - pY) < 2)) * 2;
+
+            console.log("Num: " + num);
+
+            console.log("Connection: " + [c[0], c[1], c[2], c[3]]);
+
+            c[num] = x;
+            c[num + 1] = y;
+
+            console.log(c);
+
+            let obj3 = d3.select('#' + nodeConnections[z]);
+            resizeElement(obj3, c[0], c[1], c[2], c[3]);
+            drawLine(c[4], c[0], c[1], c[2], c[3], c[7], 0);
+          }
+        }
+      }
+    });
 }
 
 
@@ -904,7 +1172,7 @@ function removEmptyNode() {
 
     if (clicked.select('p').text() == "") {
 
-      if ((Math.abs(getElementCenterX(clicked) - clickedX) > 18) || (Math.abs(getElementCenterY(clicked) - clickedY) > 34)) {
+      if ((Math.abs(getElementCenterX(clicked) - clickedX) > nHW) || (Math.abs(getElementCenterY(clicked) - clickedY) > nHH)) {
 
         // Delete latest node
         // Set node state to 0 (deleted)
@@ -933,10 +1201,18 @@ function deleteSelection() {
   // Delete selected nodes
   // Darken delete button (inactive)
 
+  let selectedFixedNodes = [];
+
   for (let i = 0; i < selectedNodes.length; i++) {
 
-    nodes[getIndexFromID(selectedNodes[i].attr('id'))][6] = 0;
-    selectedNodes[i].remove();
+    let n = nodes[getIndexFromID(selectedNodes[i].attr('id'))]
+    n[6] = 0;
+    selectedNodes[i].node().parentNode.parentNode.remove();
+
+
+    // Filter and save selected fixed nodes for fixed tree updates
+
+    if (!(n[7])) { selectedFixedNodes.push(selectedNodes[i]); }
   }
 
   // Delete selected connections
@@ -954,6 +1230,41 @@ function deleteSelection() {
       sC.remove();
     }
   }
+
+
+  // Check for unique free parent nodes
+  // Update afected fixed node tree positions
+
+  let a = [];
+  let id = 0;
+
+  for (let i = 0; i < selectedFixedNodes.length; i++) {
+
+    // Check for parent node
+    // If there is one look for it's parent
+    // Repeat until the free parent node is found
+
+    let ind = getTreeParentIndex(selectedFixedNodes[i]);
+    let canAdd = 1;
+
+    for (let z = 0; z < a.length; z++) {
+
+      if (a[z] == ind) { canAdd = 0; }
+    }
+
+    if (canAdd) {
+
+      a.push(ind);
+    }
+  }
+
+  for (let i = 0; i < a.length; i++) {
+
+    let obj = d3.select('#node-' + a[i]);
+    updateFixedTree(obj);
+    console.log('Updated ' + a.length + ' Node Trees');
+  }
+
 
   d3.select('a.button').style('opacity', '');
   selectedNodes.length = 0;
@@ -981,18 +1292,36 @@ function deselectAll() {
 
 function getElementCenterX(obj) {
 
+  // Check if element is a fixed or free node
   // Calculate and return centered X position of element
 
-  return parseInt(obj.style('margin-left'), 10) + Math.floor(parseInt(obj.style('width'), 10) / 2);
+  if ((nodes[getIndexFromID(obj.attr('id'))][7])) {
+
+    return parseInt(obj.style('margin-left'), 10) + Math.floor(parseInt(obj.style('width'), 10) / 2);
+
+  } else {
+
+    let bounding = obj.node().getBoundingClientRect();
+    return (Math.floor(bounding.left) + Math.floor(parseInt(obj.style('width'), 10) / 2));
+  }
 }
 
 
 
 function getElementCenterY(obj) {
 
+  // Check if element is a fixed or free node
   // Calculate and return centered Y position of element
 
-  return parseInt(obj.style('margin-top'), 10) + Math.floor(parseInt(obj.style('height'), 10) / 2);
+  if ((nodes[getIndexFromID(obj.attr('id'))][7])) {
+
+    return parseInt(obj.style('margin-top'), 10) + Math.floor(parseInt(obj.style('height'), 10) / 2);
+
+  } else {
+
+    let bounding = obj.node().getBoundingClientRect();
+    return (Math.floor(bounding.top) + Math.floor(parseInt(obj.style('height'), 10) / 2));
+  }
 }
 
 
@@ -1002,6 +1331,25 @@ function getIndexFromID(id) {
   // Extract array index from element id
 
   return id.split('-')[1];
+}
+
+
+
+function getTreeParentIndex(obj) {
+
+  let n = 1;
+  let i = getIndexFromID(obj.attr('id'));
+
+  while (n) {
+
+    if (nodes[i][8] != -1) {
+
+      i = getIndexFromID(nodes[i][8]);
+
+    } else { n = 0; }
+  }
+
+  return i;
 }
 
 
