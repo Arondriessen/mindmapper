@@ -19,29 +19,31 @@ var onEmpty = 1;
 
 var mX = 0; // Mouse x position
 var mY = 0; // Mouse y position
+
 var clickedX = 0; // X position of last click
 var clickedY = 0; // Y position of last click
+
 var mouseMoved = 0; // State of mouse movement between click and release
-var activeKey = 0;
+var activeKey = 0; // Currently held key (switch to array for key combinations)
 
 var nodes = []; // [x, y, w, h, attached connections, text, deleted/active (0, 1), fixed/free node (0, 1), parent node(fixed only)]
 var connections = []; // [x, y, x2, y2, child p5 sketch, cut, deleted/active (0, 1), line type]
 
-var nodeCount = 0;
-var connectionCount = 0;
+var nodeCount = 0; // Total number of nodes in the map (including deleted ones)
+var connectionCount = 0; // Total number of connections on the map (including deleted ones)
 
-var clicked;
-var connecting;
-var sketchId;
+var clicked; // Last clicked node element
+var connecting; // Currently drawn connection
+var sketchId; // Id of currently drawn/edited p5 sketch
 
-var selectedNodes = [];
-var selectedConnections = [];
+var selectedNodes = []; // It's in the name
+var selectedConnections = []; // It's in the name
 
-var xOffset = 0;
-var yOffset = 0;
+var xOffset = 0; // X offset used to calculate the top left position of a node based on it's centre
+var yOffset = 0; // Y offset used to calculate the top left position of a node based on it's centre
 
-var nHW = 20;
-var nHH = 30;
+var nHW = 20; // Default node half width
+var nHH = 30; // Default node half height
 
 
 
@@ -120,6 +122,8 @@ setInterval(function() {
   let connectionsCopy = [];
 
   for (let i = 0; i < connectionCount; i++) {
+
+    // Save x, y, x2, y2, deleted/active, line type off connections array into a copy
 
     connectionsCopy[i] = [connections[i][0], connections[i][1], connections[i][2], connections[i][3], connections[i][6], connections[i][7]];
   }
