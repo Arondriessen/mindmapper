@@ -254,7 +254,6 @@ function bodyMouseup() {
       break;
 
 
-
     case 3:
 
       // Delete in-progress connections
@@ -289,7 +288,6 @@ function bodyMouseup() {
       break;
 
 
-
     case 4:
 
       // Delete "cut" connections
@@ -300,7 +298,6 @@ function bodyMouseup() {
 
         let a = connections[i];
 
-        a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
         if (a[5]) {
           a[6] = 0;
           d3.select('#connection-' + i).remove();
@@ -310,7 +307,6 @@ function bodyMouseup() {
       state = 0;
 
       break;
-
 
 
     case 5:
@@ -443,8 +439,11 @@ function bodyMouseMove() {
 
       if (a[6]) {
 
-        a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
-        drawLine(a[4], a[0], a[1], a[2], a[3], a[7], a[5]);
+        if (a[7] == 0) {
+
+          a[5] = Math.floor(intersects(a[0], a[1], a[2], a[3], clickedX, clickedY, mX, mY));
+          drawLine(a[4], a[0], a[1], a[2], a[3], a[7], a[5]);
+        }
       }
     }
   }
