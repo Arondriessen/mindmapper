@@ -1065,8 +1065,8 @@ function drawLine(sketchId, x, y, x2, y2, lineType, selected) {
 
   // Draw bezier line between connection points
 
-  let w = Math.abs(x - x2);
-  let h = Math.abs(y - y2);
+  let w = Math.max(Math.abs(x - x2), 2);
+  let h = Math.max(Math.abs(y - y2), 2);
   let dir = (((x < x2) && (y < y2)) || ((x > x2) && (y > y2)));
 
   sketchId.resizeCanvas(w, h);
@@ -1089,8 +1089,8 @@ function resizeElement(obj, x, y, x2, y2) {
   obj.style('margin-left', Math.min(x, x2) + 'px')
   .style('margin-top', Math.min(y, y2) + 'px')
   .style('margin-bottom', Math.min(y, y2) + 'px')
-  .style('width', Math.abs(x - x2) + 'px')
-  .style('height', Math.abs(y - y2) + 'px');
+  .style('width', Math.max(Math.abs(x - x2), 2) + 'px')
+  .style('height', Math.max(Math.abs(y - y2), 2) + 'px');
 }
 
 
