@@ -71,20 +71,38 @@ setTimeout(function() {
 
       if (n[6]) {  // If element is active
 
-        if (n[7]) {  // If free node
+        if (n[5] != "") { // If node has text in it
 
-          // Recreate free node
+          if (n[7]) {  // If free node
 
-          let x = (n[0] - Math.floor(n[2] / 2)) + nHW;
-          let y = (n[1] - Math.floor(n[3] / 2)) + nHH;
+            // Recreate free node
 
-          createNode(i, x, y, n[5]);
+            let x = (n[0] - Math.floor(n[2] / 2)) + nHW;
+            let y = (n[1] - Math.floor(n[3] / 2)) + nHH;
 
-        } else {  // If fixed node
+            createNode(i, x, y, n[5]);
 
-          // Recreate fixed node
+          } else {  // If fixed node
 
-          createFixedNode(i, n[8], n[5], 0);
+            // Recreate fixed node
+
+            createFixedNode(i, n[8], n[5], 0);
+          }
+
+        } else {
+
+          // If saved node is empty (saved while being edited)
+          // node will not be loaded in
+          // and attached connections need to be removed
+
+          let nodeConnections = n[4];
+
+          for (let i = 0; i < nodeConnections.length; i++) {
+
+            let obj = d3.select('#' + nodeConnections[i]);
+            obj.remove();
+          }
+
         }
       }
     }
@@ -888,9 +906,9 @@ function createNode(id, x, y, txt) {
 
               parent.append('div')
                 .classed('handle_circle new_node_circle', true)
-                .append('image')
-                .classed('add_icon', true)
-                .attr('src', 'images/add_icon.svg');
+                .append('img')
+                .attr('src', 'images/add_icon.svg')
+                .classed('add_icon', true);
             });
           });
 
