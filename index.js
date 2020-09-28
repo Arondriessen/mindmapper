@@ -71,8 +71,6 @@ setTimeout(function() {
 
       if (n[6]) {  // If element is active
 
-        if (n[5] != "") { // If node has text in it
-
           if (n[7]) {  // If free node
 
             // Recreate free node
@@ -88,22 +86,6 @@ setTimeout(function() {
 
             createFixedNode(i, n[8], n[5], 0);
           }
-
-        } else {
-
-          // If saved node is empty (saved while being edited)
-          // node will not be loaded in
-          // and attached connections need to be removed
-
-          let nodeConnections = n[4];
-
-          for (let i = 0; i < nodeConnections.length; i++) {
-
-            let obj = d3.select('#' + nodeConnections[i]);
-            obj.remove();
-          }
-
-        }
       }
     }
 
@@ -790,6 +772,8 @@ function getKey(event) {
 
   if (event.isComposing || event.keyCode === 229) { return; }
 
+  if (event.keyCode === 13) { activeKey = 13; }
+
   if (event.keyCode === 17) { activeKey = 17; }
   if (event.keyCode === 18) { activeKey = 18; }
 
@@ -979,9 +963,9 @@ function createFixedNode(id, parent, txt, newNode) {
 
               parent.append('div')
                 .classed('handle_circle new_node_circle', true)
-                .append('image')
-                .classed('add_icon', true)
-                .attr('src', 'images/add_icon.svg');
+                .append('img')
+                .attr('src', 'images/add_icon.svg')
+                .classed('add_icon', true);
             });
           });
 
